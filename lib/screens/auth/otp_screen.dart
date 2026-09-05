@@ -1,6 +1,8 @@
 // lib/screens/auth/otp_screen.dart
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../providers/app_providers.dart';
 import '../../utils/app_theme.dart';
 import '../../utils/dev_config.dart';
@@ -39,26 +41,48 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
 
     try {
       final service = ref.read(supabaseServiceProvider);
-      final response = await service.verifyOTP(widget.phone, otp);
 
-      if (response.user != null) {
+      // 1) التحقق من الرمز. فشله هنا وحده يعني أن الرمز خاطئ.
+      final AuthResponse response;
+      try {
+        response = await service.verifyOTP(widget.phone, otp);
+      } on AuthException catch (e) {
+        debugPrint('verifyOTP failed: ${e.message}');
+        _showError('رمز التحقق غير صحيح');
+        return;
+      }
+
+      if (response.user == null) {
+        _showError('رمز التحقق غير صحيح');
+        return;
+      }
+
+      // 2) حفظ الملف الشخصي. التحقق نجح فعلاً، فأي فشل هنا ليس خطأ في الرمز
+      //    ويجب ألا يُعرض على أنه كذلك.
+      try {
         await service.createOrUpdateUser(
           userId: response.user!.id,
           phone: widget.phone,
         );
-
-        if (!mounted) return;
-
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const MainScreen()),
-          (route) => false,
+      } catch (e) {
+        debugPrint('createOrUpdateUser failed: $e');
+        _showError(
+          kDebugMode
+              ? 'تم التحقق، لكن فشل حفظ الملف الشخصي: $e'
+              : 'تم التحقق، لكن تعذّر إنشاء حسابك. حاول لاحقاً.',
         );
+        return;
       }
-    } catch (e) {
-      _showError('رمز التحقق غير صحيح');
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => const MainScreen()),
+        (route) => false,
+      );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

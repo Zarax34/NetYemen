@@ -31,25 +31,43 @@ class SupabaseService {
 
   // ==================== USERS ====================
 
+  /// يقرأ الملف الشخصي من `profiles`.
+  ///
+  /// رقم الهاتف ليس عموداً في `profiles` — مصدره `auth.users`. والرصيد يعيش
+  /// في `wallet_accounts.cached_balance` لا في الملف الشخصي.
   Future<AppUser?> getUserProfile(String userId) async {
-    final response =
-        await _client.from('users').select().eq('id', userId).maybeSingle();
+    final profile =
+        await _client.from('profiles').select().eq('id', userId).maybeSingle();
 
-    if (response == null) return null;
-    return AppUser.fromJson(response);
+    if (profile == null) return null;
+
+    final wallet = await _client
+        .from('wallet_accounts')
+        .select('cached_balance')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+    return AppUser.fromJson({
+      ...profile,
+      'phone': _client.auth.currentUser?.phone ?? '',
+      'wallet_balance': wallet?['cached_balance'] ?? 0,
+      'governorate': profile['default_governorate'],
+      'city': profile['default_city'],
+      'is_active': profile['account_status'] == 'active',
+    });
   }
 
-  Future<void> createOrUpdateUser({
+  /// تحديث اسم المستخدم في ملفه الشخصي.
+  ///
+  /// لا يوجد إنشاء هنا عمداً: المحفّز `on_auth_user_created` على `auth.users`
+  /// ينشئ صف `profiles` وصف `wallet_accounts` تلقائياً عند أول تسجيل دخول.
+  Future<void> updateProfileName({
     required String userId,
-    required String phone,
-    String? fullName,
+    required String fullName,
   }) async {
-    await _client.from('users').upsert({
-      'id': userId,
-      'phone': phone,
-      'full_name': fullName,
-      'wallet_balance': 0,
-    });
+    await _client
+        .from('profiles')
+        .update({'full_name': fullName}).eq('id', userId);
   }
 
   // ==================== NETWORKS ====================

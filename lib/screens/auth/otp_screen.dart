@@ -1,5 +1,4 @@
 // lib/screens/auth/otp_screen.dart
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -57,22 +56,8 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
         return;
       }
 
-      // 2) حفظ الملف الشخصي. التحقق نجح فعلاً، فأي فشل هنا ليس خطأ في الرمز
-      //    ويجب ألا يُعرض على أنه كذلك.
-      try {
-        await service.createOrUpdateUser(
-          userId: response.user!.id,
-          phone: widget.phone,
-        );
-      } catch (e) {
-        debugPrint('createOrUpdateUser failed: $e');
-        _showError(
-          kDebugMode
-              ? 'تم التحقق، لكن فشل حفظ الملف الشخصي: $e'
-              : 'تم التحقق، لكن تعذّر إنشاء حسابك. حاول لاحقاً.',
-        );
-        return;
-      }
+      // لا حاجة لإنشاء ملف شخصي هنا: المحفّز `on_auth_user_created` على
+      // `auth.users` ينشئ صف `profiles` وصف `wallet_accounts` تلقائياً.
 
       if (!mounted) return;
 

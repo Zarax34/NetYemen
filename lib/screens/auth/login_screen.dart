@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/dev_config.dart';
 import 'otp_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -15,6 +16,15 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _phoneController = TextEditingController();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // تعبئة الرقم التجريبي في بناء التطوير فقط (مقفل في release).
+    if (DevConfig.isEnabled) {
+      _phoneController.text = DevConfig.testPhone;
+    }
+  }
 
   Future<void> _sendOTP() async {
     final phone = _phoneController.text.trim();
@@ -104,6 +114,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   counterText: '',
                 ),
               ),
+              if (DevConfig.isEnabled) ...[
+                const SizedBox(height: 12),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppTheme.warning.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppTheme.warning),
+                  ),
+                  child: const Text(
+                    'وضع التطوير — رقم تجريبي مُعبأ مسبقاً',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.warning,
+                    ),
+                  ),
+                ),
+              ],
               const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,

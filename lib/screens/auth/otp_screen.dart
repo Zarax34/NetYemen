@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/dev_config.dart';
 import '../main_screen.dart';
 
 class OTPScreen extends ConsumerStatefulWidget {
@@ -17,6 +18,15 @@ class OTPScreen extends ConsumerStatefulWidget {
 class _OTPScreenState extends ConsumerState<OTPScreen> {
   final _otpController = TextEditingController();
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // تعبئة الرمز التجريبي في بناء التطوير فقط (مقفل في release).
+    if (DevConfig.isEnabled && DevConfig.testOtp.isNotEmpty) {
+      _otpController.text = DevConfig.testOtp;
+    }
+  }
 
   Future<void> _verifyOTP() async {
     final otp = _otpController.text.trim();

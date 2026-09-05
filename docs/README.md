@@ -18,6 +18,7 @@ Welcome to the official technical, business, and security documentation reposito
 * 🔍 [Competitor Benchmark Analysis](NETYEMEN-COMPETITOR-BENCHMARK-01.md) — Benchmark visual analysis of regional competitors (Competitor A & Competitor B).
 * 📜 [Business Rules Catalog](NETYEMEN-BUSINESS-RULES-CATALOG-01.md) — 57 uniquely numbered business rules across 10 functional domains (`BR-AUTH` to `BR-AUDIT`).
 * ❓ [Open Decision Register](NETYEMEN-DECISION-REGISTER-01.md) — 11 registered open business decisions (`OD-AUTH-01` to `OD-NOTIF-01`) with multi-option analyses and provisional recommendations.
+* ✍️ [Owner Decision Sign-Off Package](NETYEMEN-OWNER-DECISION-SIGNOFF-PACKAGE-01.md) — Sign-off sheet for the 4 decisions still `OPEN_DECISION`, each paired with what the shipped code already does and the rework cost of the alternative.
 * 🔄 [Workflow State Machines](NETYEMEN-WORKFLOW-STATE-MACHINES-01.md) — 10 complete workflow state machines (+ 1 customer lifecycle) with transition matrices and Mermaid diagrams.
 
 ---

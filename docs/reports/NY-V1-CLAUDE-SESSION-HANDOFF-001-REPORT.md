@@ -102,3 +102,59 @@ NetYemen Supabase Core CI — Supabase Local Authorization & Verification Gates:
 3. **Promote PR #15 out of draft**, or determine why it remains draft (the `NY-V1-CODEX-CONTINUATION-001-REPORT.md`, dated 2026-08-19, notes the only remaining release hold at that time was physical FCM-delivery pilot evidence — check whether that has since landed, given the physical pilot closure report is dated earlier, 2026-08-09, and later commits continued past both reports).
 4. **Track A branch disposal.** `codex/NY-BE-001`, `cursor/NY-CUST-001`, `cursor/NY-CUST-002` remain on `origin`, unreferenced by any open PR. Given Track B's card-vault design supersedes Track A's card-encryption work outright (see OD-CARD-01 verification above), and Track B's backend schema is incompatible with Track A's app code regardless, these three branches have limited remaining reference value. Recommend deleting them once the project owner confirms — this agent did not delete them unprompted, per this session's own git-safety discipline.
 5. **This report's branch** (`claude/NY-V1-SESSION-HANDOFF-001`) is pushed but has no PR opened against it, matching how the rest of this session's output was left for the project owner's own decision on next steps.
+
+---
+
+## Part C — Addendum: state of the `Zarax34/NetYemen` clone (2026-09-05)
+
+Part A and Part B above were written against `msorori-mh/NetYemen`. The work is
+now continuing in `Zarax34/NetYemen`, a clone of that repository. Cloning
+carries branches but not pull requests, so several statements above need a
+translation before they can be acted on here.
+
+### What does not carry over
+
+| Statement above | Status in `Zarax34/NetYemen` |
+|---|---|
+| PR dependency graph `#4 → #15`, `PR #16 closed` | **No pull requests exist in this repository at all.** The numbers refer to the origin repository only. |
+| "PR #15 is `isDraft`, `CLEAN`, CI green" | Not reproducible here: `total_count: 0` workflow runs. CI had never executed in this clone. |
+| Next step 2, "decide the PR merge strategy" | There is no PR stack to work through here. The equivalent action is a single fast-forward, below. |
+| Next step 3, "promote PR #15 out of draft" | Not applicable. |
+
+### What does carry over
+
+All 22 branches are present, including the three Track A branches
+(`codex/NY-BE-001`, `cursor/NY-CUST-001`, `cursor/NY-CUST-002`), so next step 4
+(Track A branch disposal) stands unchanged.
+
+### Merge position, measured
+
+`main` is a direct ancestor of `kimi/NY-V1-EXTERNAL-PILOT-BINDING-001`:
+
+```
+merge-base(main, pilot) = 482f259   (main's own tip)
+main  ->  pilot : 0 behind, 248 ahead
+git merge-base --is-ancestor main pilot  =>  true
+```
+
+A fast-forward is therefore available and cannot conflict:
+
+```
+git checkout main && git merge --ff-only kimi/NY-V1-EXTERNAL-PILOT-BINDING-001
+```
+
+This is the owner's call to make and has deliberately not been performed.
+
+### Corrections to Part B
+
+* **Branch scope.** Part B describes the pilot branch as "migrations dated
+  through 2026-08-22" with test `015` as its crypto coverage. The branch head
+  also carries tests `016`–`019`: phone/password tester onboarding, admin
+  onboarding review, account deletion requests, and the hosted legal verifiers.
+  The CI snapshot quoted in Part B predates those commits.
+* **CI evidence.** The green run quoted in Part B belongs to the origin
+  repository. See `docs/reports/NY-V1-CLAUDE-COMPLETION-002-REPORT.md` for a
+  full local execution of both gates against this branch.
+* **Next step 3 (the FCM release hold) is still open.** No report closing it
+  exists in the repository; `NY-V1-CODEX-CONTINUATION-001-REPORT.md` remains the
+  most recent word on it and still reads `Physical external pilot: HOLD`.

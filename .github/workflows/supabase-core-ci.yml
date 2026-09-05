@@ -6,10 +6,13 @@ on:
       - 'antigravity/*'
       - 'kimi/*'
       - 'codex/*'
+      - 'cursor/*'
+      - 'claude/*'
   pull_request:
     branches:
       - 'main'
       - 'antigravity/*'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -96,6 +99,13 @@ jobs:
             "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
             -v ON_ERROR_STOP=1 \
             -f supabase/verification/018_account_deletion_production_postverify.sql
+
+      - name: Verify Wallet Ledger Reconciliation (OD-WALLET-01)
+        run: |
+          PGPASSWORD=postgres psql \
+            "postgresql://postgres:postgres@127.0.0.1:54322/postgres" \
+            -v ON_ERROR_STOP=1 \
+            -f supabase/verification/020_wallet_balance_reconciliation.sql
 
       - name: Execute PowerShell Static Verification Script
         shell: pwsh

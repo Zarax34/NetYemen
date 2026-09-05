@@ -12,9 +12,9 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $violations = @()
 
 $scans = @(
-    @{ Name = "Secret Scan"; Script = "$scriptDir\scan_netyemen_secrets.ps1" },
-    @{ Name = "Card Secret Prohibition Scan"; Script = "$scriptDir\scan_netyemen_card_secrets.ps1" },
-    @{ Name = "Financial Invariant Scan"; Script = "$scriptDir\scan_netyemen_financial_invariants.ps1" }
+    @{ Name = "Secret Scan"; Script = (Join-Path $scriptDir 'scan_netyemen_secrets.ps1') },
+    @{ Name = "Card Secret Prohibition Scan"; Script = (Join-Path $scriptDir 'scan_netyemen_card_secrets.ps1') },
+    @{ Name = "Financial Invariant Scan"; Script = (Join-Path $scriptDir 'scan_netyemen_financial_invariants.ps1') }
 )
 
 foreach ($scan in $scans) {

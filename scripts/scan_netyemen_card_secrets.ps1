@@ -9,12 +9,21 @@ Write-Host "================================================================" -F
 
 $violations = @()
 
-$searchRoot = "C:/projects/NetYemen-kimi-commerce"
+$searchRoot = Split-Path -Parent $PSScriptRoot
 
 # File categories to scan
-$sqlFiles = Get-ChildItem -Path "$searchRoot/supabase" -Recurse -Filter *.sql -ErrorAction SilentlyContinue
-$dartFiles = Get-ChildItem -Path "$searchRoot/lib" -Recurse -Filter *.dart -ErrorAction SilentlyContinue
-$allFiles = $sqlFiles + $dartFiles
+$sqlFiles = Get-ChildItem -Path (Join-Path $searchRoot 'supabase') -Recurse -Filter *.sql -ErrorAction SilentlyContinue
+$dartFiles = Get-ChildItem -Path (Join-Path $searchRoot 'lib') -Recurse -Filter *.dart -ErrorAction SilentlyContinue
+$allFiles = @($sqlFiles) + @($dartFiles)
+
+if ($allFiles.Count -eq 0) {
+    Write-Host "RESULT: HOLD" -ForegroundColor Red
+    Write-Host "  [FAIL] No SQL or Dart source files were found under $searchRoot." -ForegroundColor Red
+    Write-Host "  A scan that inspects zero files cannot enforce OD-CARD-01." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "Scanning $($allFiles.Count) source file(s) under $searchRoot" -ForegroundColor Yellow
 
 # Patterns indicating plaintext card/voucher storage (OD-CARD-01)
 $cardSecretPatterns = @(

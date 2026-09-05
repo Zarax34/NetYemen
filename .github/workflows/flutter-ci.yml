@@ -4,9 +4,15 @@ on:
   push:
     branches:
       - main
+      - 'antigravity/*'
+      - 'kimi/*'
+      - 'codex/*'
+      - 'cursor/*'
+      - 'claude/*'
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

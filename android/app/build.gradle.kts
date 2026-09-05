@@ -32,7 +32,9 @@ android {
 
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
+            // TODO: استبدلها بمفتاح توقيع الإنتاج (key.properties) قبل النشر على المتجر.
+            // مؤقتاً نوقّع بمفتاح debug حتى يكون ملف release قابلاً للتثبيت على الهاتف.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 }

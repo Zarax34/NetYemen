@@ -12,6 +12,10 @@ dependencies:
   flutter:
     sdk: flutter
 
+  # Localization (RTL + الترجمات العربية لعناصر Material)
+  flutter_localizations:
+    sdk: flutter
+
   # Supabase
   supabase_flutter: ^2.5.0
 

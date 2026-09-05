@@ -6,8 +6,8 @@ import 'package:flutter/foundation.dart';
 /// القيم تُمرَّر وقت البناء عبر --dart-define ولا تُخزَّن في المستودع إطلاقاً
 /// (المستودع عام، وأي رقم/رمز مكتوب فيه يصبح باباً خلفياً لأي شخص):
 ///
-///   flutter run --dart-define=DEV_TEST_PHONE=771234567 \
-///               --dart-define=DEV_TEST_OTP=123456
+///   flutter run --dart-define=DEV_TEST_PHONE=7XXXXXXXX \
+///               --dart-define=DEV_TEST_OTP=NNNNNN
 ///
 /// حاجز الأمان: كل شيء هنا مقفل بـ [kReleaseMode]. حتى لو مرّر أحدهم
 /// الـ defines إلى بناء release فستبقى القيم فارغة وتبقى [isEnabled] false،
@@ -21,7 +21,7 @@ class DevConfig {
   /// مفعّل فقط في بناء debug/profile مع تمرير رقم تجريبي.
   static bool get isEnabled => !kReleaseMode && _phone.isNotEmpty;
 
-  /// الرقم المحلي بدون مقدمة الدولة (9 أرقام)، مثل 771234567.
+  /// الرقم المحلي بدون مقدمة الدولة (9 أرقام)، مثل 7XXXXXXXX.
   static String get testPhone => isEnabled ? _phone : '';
 
   /// رمز التحقق التجريبي المطابق للمضبوط في Supabase Test OTP.

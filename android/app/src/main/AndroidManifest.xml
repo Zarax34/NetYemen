@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- مطلوبة للاتصال بـ Supabase. لا تحذفها: بدونها تفشل كل الطلبات في نسخة
+         release بخطأ "Failed host lookup ... errno = 7"، لأن Flutter يضيف هذه
+         الصلاحية تلقائياً إلى manifest التطوير (debug/profile) فقط. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
         android:label="netyemen"
         android:name="${applicationName}"

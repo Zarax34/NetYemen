@@ -1,4 +1,4 @@
-package com.example.netyemen
+package com.netyemen.customer
 
 import io.flutter.embedding.android.FlutterActivity
 

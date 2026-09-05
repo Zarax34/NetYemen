@@ -1,0 +1,153 @@
+name: WASEL NET Android APK
+
+# Produces a sideloadable .apk, which the release workflow does not: that one
+# builds an .aab for Play, and an .aab cannot be installed on a phone directly.
+#
+# Configuration comes from repository secrets. When SUPABASE_URL and
+# SUPABASE_PUBLISHABLE_KEY are absent the APK still builds, but the app opens on
+# its "unconfigured" screen because it has no backend to talk to — so the
+# artifact is named accordingly and the job summary says which build you got.
+#
+# Signing: supply WASELNET_UPLOAD_KEYSTORE_BASE64 (plus its three passwords) to
+# sign with your real upload key. Without it the job generates a throwaway key,
+# which installs fine but changes on every run — Android then refuses to upgrade
+# over a previous install, so uninstall the old build first.
+
+on:
+  push:
+    branches:
+      - 'claude/*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    name: Build Sideloadable APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Flutter SDK
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.38.7'
+          channel: 'stable'
+          cache: true
+
+      - name: Install Locked Dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Resolve Runtime Configuration
+        id: config
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          PRIVACY_POLICY_URL: ${{ secrets.PRIVACY_POLICY_URL }}
+          ACCOUNT_DELETION_URL: ${{ secrets.ACCOUNT_DELETION_URL }}
+        run: |
+          set -euo pipefail
+          if [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+            echo "suffix=" >> "$GITHUB_OUTPUT"
+            echo "### Configured build" >> "$GITHUB_STEP_SUMMARY"
+            echo "Built against the Supabase project in repository secrets." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "suffix=-unconfigured" >> "$GITHUB_OUTPUT"
+            echo "### Unconfigured build" >> "$GITHUB_STEP_SUMMARY"
+            echo "SUPABASE_URL and/or SUPABASE_PUBLISHABLE_KEY are not set as repository secrets." >> "$GITHUB_STEP_SUMMARY"
+            echo "The APK installs and opens, but shows the unconfigured screen because it has no backend." >> "$GITHUB_STEP_SUMMARY"
+            echo "Add both secrets and re-run this workflow to get a working build." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Prepare Signing Key
+        id: signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.WASELNET_UPLOAD_KEYSTORE_BASE64 }}
+          STORE_PASSWORD: ${{ secrets.WASELNET_UPLOAD_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.WASELNET_UPLOAD_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.WASELNET_UPLOAD_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -n "$KEYSTORE_BASE64" ] && [ -n "$STORE_PASSWORD" ] \
+             && [ -n "$KEY_ALIAS" ] && [ -n "$KEY_PASSWORD" ]; then
+            echo "$KEYSTORE_BASE64" | base64 -d > android/upload-keystore.jks
+            cat > android/key.properties <<EOF
+          storeFile=upload-keystore.jks
+          storePassword=$STORE_PASSWORD
+          keyAlias=$KEY_ALIAS
+          keyPassword=$KEY_PASSWORD
+          EOF
+            echo "ephemeral=false" >> "$GITHUB_OUTPUT"
+            echo "Signed with the upload key from repository secrets." >> "$GITHUB_STEP_SUMMARY"
+          else
+            keytool -genkeypair -v \
+              -keystore android/ephemeral-keystore.jks \
+              -storepass ephemeral-only-password \
+              -alias waselnet-ephemeral \
+              -keypass ephemeral-only-password \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 365 \
+              -dname "CN=WASEL NET Sideload, OU=TEST ONLY, O=SysTrac, C=YE"
+            cat > android/key.properties <<'EOF'
+          storeFile=ephemeral-keystore.jks
+          storePassword=ephemeral-only-password
+          keyAlias=waselnet-ephemeral
+          keyPassword=ephemeral-only-password
+          EOF
+            echo "ephemeral=true" >> "$GITHUB_OUTPUT"
+            echo "Signed with a throwaway key generated for this run. Uninstall any previous build before installing." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Build Release APK
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          PRIVACY_POLICY_URL: ${{ secrets.PRIVACY_POLICY_URL }}
+          ACCOUNT_DELETION_URL: ${{ secrets.ACCOUNT_DELETION_URL }}
+        run: |
+          set -euo pipefail
+          flutter build apk --release \
+            --dart-define=SUPABASE_URL="${SUPABASE_URL:-}" \
+            --dart-define=SUPABASE_PUBLISHABLE_KEY="${SUPABASE_PUBLISHABLE_KEY:-}" \
+            --dart-define=PRIVACY_POLICY_URL="${PRIVACY_POLICY_URL:-https://example.com/privacy}" \
+            --dart-define=ACCOUNT_DELETION_URL="${ACCOUNT_DELETION_URL:-https://example.com/delete-account}"
+
+      - name: Report APK Details
+        run: |
+          set -euo pipefail
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          test -s "$apk"
+          {
+            echo ""
+            echo "| Property | Value |"
+            echo "|---|---|"
+            echo "| File | \`app-release.apk\` |"
+            echo "| Size | $(du -h "$apk" | cut -f1) |"
+            echo "| SHA-256 | \`$(sha256sum "$apk" | cut -d' ' -f1)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: waselnet-apk${{ steps.config.outputs.suffix }}
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Remove Signing Material
+        if: always()
+        run: rm -f android/key.properties android/upload-keystore.jks android/ephemeral-keystore.jks

@@ -1,19 +1,11 @@
 // lib/screens/purchases/purchases_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import '../../providers/app_providers.dart';
 import '../../utils/app_theme.dart';
 
 class PurchasesScreen extends ConsumerWidget {
   const PurchasesScreen({super.key});
-
-  void _copyCardNumber(BuildContext context, String number) {
-    Clipboard.setData(ClipboardData(text: number));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('تم نسخ رقم الكرت')),
-    );
-  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -95,7 +87,7 @@ class PurchasesScreen extends ConsumerWidget {
                             ),
                           ),
                           Text(
-                            '${purchase.denomination} ر.ي',
+                            '${purchase.amountPaid} ر.ي',
                             style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -107,35 +99,20 @@ class PurchasesScreen extends ConsumerWidget {
                       const Divider(height: 24),
                       Row(
                         children: [
-                          Expanded(
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 8,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.background,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Text(
-                                purchase.maskedCardNumber,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 2,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                            ),
+                          const Icon(
+                            Icons.lock_outline,
+                            size: 18,
+                            color: AppTheme.textMuted,
                           ),
                           const SizedBox(width: 8),
-                          IconButton(
-                            onPressed: () => _copyCardNumber(
-                              context,
-                              purchase.cardNumber,
+                          Expanded(
+                            child: Text(
+                              purchase.packageName ?? 'باقة',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.textSecondary,
+                              ),
                             ),
-                            icon: const Icon(Icons.copy),
-                            color: AppTheme.primary,
                           ),
                         ],
                       ),

@@ -1,88 +1,135 @@
 // lib/models/network_model.dart
+
+/// شبكة إنترنت محلية، مطابقة لجدول `networks`.
+///
+/// انتبه: العمود اسمه `commercial_name` لا `name`، ولا يوجد `is_active` —
+/// التفعيل يُقاس بـ `status == 'active'`.
 class Network {
   final String id;
-  final String? ownerId;
-  final String name;
-  final String? ssid;
-  final String governorate;
-  final String city;
+  final String commercialName;
+  final String? description;
+  final String? governorate;
+  final String? city;
   final String? district;
-  final String? phone;
-  final String? whatsapp;
-  final double? lat;
-  final double? lng;
-  final bool isActive;
-  final bool isFeatured;
+
+  /// إحدى: pending_approval | active | suspended | rejected
+  final String status;
+
+  /// إحدى: unverified | verified | rejected
+  final String verificationStatus;
+
+  final String? createdBy;
   final DateTime? createdAt;
 
-  Network({
+  const Network({
     required this.id,
-    this.ownerId,
-    required this.name,
-    this.ssid,
-    required this.governorate,
-    required this.city,
+    required this.commercialName,
+    this.description,
+    this.governorate,
+    this.city,
     this.district,
-    this.phone,
-    this.whatsapp,
-    this.lat,
-    this.lng,
-    this.isActive = true,
-    this.isFeatured = false,
+    this.status = 'pending_approval',
+    this.verificationStatus = 'unverified',
+    this.createdBy,
     this.createdAt,
   });
 
   factory Network.fromJson(Map<String, dynamic> json) {
     return Network(
       id: json['id'] ?? '',
-      ownerId: json['owner_id'],
-      name: json['name'] ?? '',
-      ssid: json['ssid'],
-      governorate: json['governorate'] ?? '',
-      city: json['city'] ?? '',
+      commercialName: json['commercial_name'] ?? '',
+      description: json['description'],
+      governorate: json['governorate'],
+      city: json['city'],
       district: json['district'],
-      phone: json['phone'],
-      whatsapp: json['whatsapp'],
-      lat: json['location_lat'] != null
-          ? (json['location_lat'] as num).toDouble()
-          : null,
-      lng: json['location_lng'] != null
-          ? (json['location_lng'] as num).toDouble()
-          : null,
-      isActive: json['is_active'] ?? true,
-      isFeatured: json['is_featured'] ?? false,
+      status: json['status'] ?? 'pending_approval',
+      verificationStatus: json['verification_status'] ?? 'unverified',
+      createdBy: json['created_by'],
       createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
+          ? DateTime.tryParse(json['created_at'])
           : null,
     );
   }
 
+  bool get isActive => status == 'active';
+  bool get isVerified => verificationStatus == 'verified';
+
+  /// نص الموقع، متجاوزاً الأجزاء الفارغة.
   String get locationText =>
-      '$governorate - $city${district != null ? ' - $district' : ''}';
+      [governorate, city, district].where((p) => p != null && p.isNotEmpty).join(' - ');
 }
 
-class NetworkPrice {
+/// باقة معروضة للبيع، مطابقة لجدول `network_packages`.
+///
+/// يحل محل `NetworkPrice` القديم: لا يوجد `denomination` — الباقة لها اسم
+/// وسعر ومدة وسرعة.
+class NetworkPackage {
   final String id;
   final String networkId;
-  final int denomination;
+  final String name;
+  final String? description;
   final int price;
-  final bool isActive;
+  final String currency;
+  final int? durationValue;
+  final String? durationUnit;
+  final int? speedMbps;
 
-  NetworkPrice({
+  /// إحدى: time | data | hybrid
+  final String packageType;
+
+  /// إحدى: draft | active | inactive | archived
+  final String status;
+
+  final bool isPublic;
+  final int sortOrder;
+
+  const NetworkPackage({
     required this.id,
     required this.networkId,
-    required this.denomination,
+    required this.name,
+    this.description,
     required this.price,
-    this.isActive = true,
+    this.currency = 'YER',
+    this.durationValue,
+    this.durationUnit,
+    this.speedMbps,
+    this.packageType = 'time',
+    this.status = 'draft',
+    this.isPublic = false,
+    this.sortOrder = 0,
   });
 
-  factory NetworkPrice.fromJson(Map<String, dynamic> json) {
-    return NetworkPrice(
+  factory NetworkPackage.fromJson(Map<String, dynamic> json) {
+    return NetworkPackage(
       id: json['id'] ?? '',
       networkId: json['network_id'] ?? '',
-      denomination: json['denomination'] ?? 0,
+      name: json['name'] ?? '',
+      description: json['description'],
       price: json['price'] ?? 0,
-      isActive: json['is_active'] ?? true,
+      currency: json['currency'] ?? 'YER',
+      durationValue: json['duration_value'],
+      durationUnit: json['duration_unit'],
+      speedMbps: json['speed_mbps'],
+      packageType: json['package_type'] ?? 'time',
+      status: json['status'] ?? 'draft',
+      isPublic: json['is_public'] ?? false,
+      sortOrder: json['sort_order'] ?? 0,
     );
   }
+
+  bool get isBuyable => isPublic && status == 'active';
+
+  /// وصف المدة بالعربية، مثل "30 يوم".
+  String get durationText {
+    if (durationValue == null) return '';
+    const units = {
+      'hour': 'ساعة',
+      'day': 'يوم',
+      'week': 'أسبوع',
+      'month': 'شهر',
+    };
+    return '$durationValue ${units[durationUnit] ?? durationUnit ?? ''}'.trim();
+  }
+
+  String get speedText => speedMbps != null ? '$speedMbps ميجابت/ث' : '';
 }

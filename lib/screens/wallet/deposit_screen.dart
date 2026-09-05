@@ -1,9 +1,15 @@
 // lib/screens/wallet/deposit_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../models/payment_destination_model.dart';
 import '../../providers/app_providers.dart';
 import '../../utils/app_theme.dart';
 
+/// طلب شحن المحفظة.
+///
+/// وجهات الدفع تأتي من `get_active_payment_destinations()` ولا تُكتب في
+/// التطبيق: الإدارة تضيفها وترتّبها من لوحة التحكم.
 class DepositScreen extends ConsumerStatefulWidget {
   const DepositScreen({super.key});
 
@@ -13,37 +19,44 @@ class DepositScreen extends ConsumerStatefulWidget {
 
 class _DepositScreenState extends ConsumerState<DepositScreen> {
   final _amountController = TextEditingController();
-  String _selectedMethod = 'bank_transfer';
+  final _referenceController = TextEditingController();
+  PaymentDestination? _selected;
   bool _isSubmitting = false;
 
-  final List<Map<String, dynamic>> _methods = [
-    {
-      'id': 'bank_transfer',
-      'name': 'تحويل بنكي',
-      'icon': Icons.account_balance
-    },
-    {'id': 'ewallet', 'name': 'محفظة إلكترونية', 'icon': Icons.phone_android},
-    {'id': 'agent', 'name': 'وكيل شحن', 'icon': Icons.storefront},
-  ];
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _referenceController.dispose();
+    super.dispose();
+  }
 
   Future<void> _submitRequest() async {
-    final amount = int.tryParse(_amountController.text);
+    final amount = int.tryParse(_amountController.text.trim());
     if (amount == null || amount < 100) {
       _showError('الحد الأدنى للشحن 100 ر.ي');
+      return;
+    }
+
+    final destination = _selected;
+    if (destination == null) {
+      _showError('اختر وجهة الدفع التي حوّلت إليها');
+      return;
+    }
+
+    final reference = _referenceController.text.trim();
+    if (reference.isEmpty) {
+      _showError('أدخل رقم الحوالة المرجعي');
       return;
     }
 
     setState(() => _isSubmitting = true);
 
     try {
-      final user = ref.read(currentUserProvider);
-      if (user == null) throw Exception('Not authenticated');
-
       final service = ref.read(supabaseServiceProvider);
       await service.createDepositRequest(
-        userId: user.id,
         amount: amount,
-        paymentMethod: _selectedMethod,
+        referenceNumber: reference,
+        paymentDestinationId: destination.id,
       );
 
       if (!mounted) return;
@@ -53,7 +66,9 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
         barrierDismissible: false,
         builder: (_) => AlertDialog(
           title: const Text('تم إرسال الطلب'),
-          content: const Text('سيتم مراجعة طلبك والتأكيد خلال دقائق'),
+          content: const Text(
+            'سيراجع فريق المالية الحوالة ويُضاف المبلغ إلى محفظتك بعد التأكيد.',
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -66,25 +81,32 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
         ),
       );
     } catch (e) {
-      _showError('فشل إرسال الطلب');
+      _showError(_depositErrorText(e));
     } finally {
-      setState(() => _isSubmitting = false);
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
+  String _depositErrorText(Object e) {
+    final raw = e.toString();
+    if (raw.contains('DUPLICATE_REFERENCE')) {
+      return 'رقم الحوالة هذا مُستخدم في طلب سابق';
+    }
+    if (raw.contains('INVALID_AMOUNT')) return 'المبلغ غير صالح';
+    return 'فشل إرسال الطلب: $raw';
+  }
+
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
+    final destinationsAsync = ref.watch(paymentDestinationsProvider);
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('شحن المحفظة'),
-      ),
-      body: Padding(
+      appBar: AppBar(title: const Text('شحن المحفظة')),
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,35 +126,41 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
             ),
             const SizedBox(height: 24),
             const Text(
-              'طريقة الدفع',
+              'وجهة الدفع',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            ..._methods.map((method) {
-              final isSelected = _selectedMethod == method['id'];
-              return Card(
-                margin: const EdgeInsets.only(bottom: 8),
-                color:
-                    isSelected ? AppTheme.primary.withValues(alpha: 0.1) : null,
-                child: ListTile(
-                  leading: Icon(
-                    method['icon'] as IconData,
-                    color:
-                        isSelected ? AppTheme.primary : AppTheme.textSecondary,
-                  ),
-                  title: Text(method['name'] as String),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_circle, color: AppTheme.primary)
-                      : null,
-                  onTap: () {
-                    setState(() {
-                      _selectedMethod = method['id'] as String;
-                    });
-                  },
-                ),
-              );
-            }),
-            const Spacer(),
+            destinationsAsync.when(
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Text(
+                'تعذّر تحميل وجهات الدفع\n$e',
+                style: const TextStyle(color: AppTheme.textSecondary),
+              ),
+              data: (destinations) => destinations.isEmpty
+                  ? const Text(
+                      'لا توجد وجهات دفع مفعّلة حالياً',
+                      style: TextStyle(color: AppTheme.textSecondary),
+                    )
+                  : Column(
+                      children: destinations
+                          .map((d) => _destinationTile(d))
+                          .toList(),
+                    ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'رقم الحوالة',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _referenceController,
+              decoration: const InputDecoration(
+                hintText: 'الرقم المرجعي في إشعار التحويل',
+              ),
+            ),
+            const SizedBox(height: 32),
             SizedBox(
               width: double.infinity,
               height: 54,
@@ -147,5 +175,42 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
         ),
       ),
     );
+  }
+
+  Widget _destinationTile(PaymentDestination destination) {
+    final isSelected = _selected?.id == destination.id;
+    final subtitle = [
+      destination.accountHolderName,
+      destination.accountIdentifier,
+    ].where((t) => t != null && t.isNotEmpty).join(' - ');
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: isSelected ? AppTheme.primary.withValues(alpha: 0.1) : null,
+      child: ListTile(
+        leading: Icon(
+          _iconFor(destination.providerType),
+          color: isSelected ? AppTheme.primary : AppTheme.textSecondary,
+        ),
+        title: Text(destination.displayName),
+        subtitle: subtitle.isEmpty ? null : Text(subtitle),
+        trailing: isSelected
+            ? const Icon(Icons.check_circle, color: AppTheme.primary)
+            : null,
+        onTap: () => setState(() => _selected = destination),
+      ),
+    );
+  }
+
+  IconData _iconFor(String providerType) {
+    switch (providerType) {
+      case 'mobile_wallet':
+        return Icons.phone_android;
+      case 'exchange':
+        return Icons.storefront;
+      case 'bank_account':
+      default:
+        return Icons.account_balance;
+    }
   }
 }

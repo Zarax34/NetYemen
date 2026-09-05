@@ -85,7 +85,7 @@ class ProfileScreen extends ConsumerWidget {
                 icon: Icons.location_on_outlined,
                 title: 'الموقع',
                 subtitle:
-                    '${user.governorate ?? '---'} - ${user.city ?? '---'}',
+                    '${user.defaultGovernorate ?? '---'} - ${user.defaultCity ?? '---'}',
                 onTap: () {},
               ),
 

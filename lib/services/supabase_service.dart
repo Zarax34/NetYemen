@@ -1,18 +1,23 @@
 // lib/services/supabase_service.dart
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/user_model.dart';
-import '../models/network_model.dart';
-import '../models/card_model.dart';
 
+import '../models/network_model.dart';
+import '../models/payment_destination_model.dart';
+import '../models/purchase_model.dart';
+import '../models/user_model.dart';
+
+/// طبقة الوصول إلى Supabase.
+///
+/// التصميم هنا **RPC أولاً**: العمليات المالية (شراء، شحن، كشف كرت) تمر
+/// حصراً عبر دوال قاعدة البيانات لأنها ذرّية وتطبّق العمولة والقيد المحاسبي
+/// وسجل التدقيق. الوصول المباشر للجداول مقصور على القراءات العامة.
 class SupabaseService {
-  final _client = Supabase.instance.client;
+  final SupabaseClient _client = Supabase.instance.client;
 
   // ==================== AUTH ====================
 
   Future<void> signInWithPhone(String phone) async {
-    await _client.auth.signInWithOtp(
-      phone: phone,
-    );
+    await _client.auth.signInWithOtp(phone: phone);
   }
 
   Future<AuthResponse> verifyOTP(String phone, String otp) async {
@@ -23,44 +28,36 @@ class SupabaseService {
     );
   }
 
-  Future<void> signOut() async {
-    await _client.auth.signOut();
-  }
+  Future<void> signOut() async => await _client.auth.signOut();
 
   User? get currentUser => _client.auth.currentUser;
 
-  // ==================== USERS ====================
+  // ==================== PROFILE ====================
 
-  /// يقرأ الملف الشخصي من `profiles`.
+  /// يجمع الملف الشخصي من `profiles`، والهاتف من الجلسة، والرصيد من المحفظة.
   ///
-  /// رقم الهاتف ليس عموداً في `profiles` — مصدره `auth.users`. والرصيد يعيش
-  /// في `wallet_accounts.cached_balance` لا في الملف الشخصي.
+  /// لا يوجد إنشاء هنا: المحفّز `on_auth_user_created` ينشئ صفّي `profiles`
+  /// و`wallet_accounts` تلقائياً عند أول تسجيل دخول.
   Future<AppUser?> getUserProfile(String userId) async {
     final profile =
         await _client.from('profiles').select().eq('id', userId).maybeSingle();
 
     if (profile == null) return null;
 
-    final wallet = await _client
-        .from('wallet_accounts')
-        .select('cached_balance')
-        .eq('user_id', userId)
-        .maybeSingle();
+    Map<String, dynamic>? wallet;
+    try {
+      wallet = await getWallet();
+    } catch (_) {
+      // الرصيد ثانوي هنا؛ لا نُسقط الملف الشخصي كله بسببه.
+    }
 
-    return AppUser.fromJson({
-      ...profile,
-      'phone': _client.auth.currentUser?.phone ?? '',
-      'wallet_balance': wallet?['cached_balance'] ?? 0,
-      'governorate': profile['default_governorate'],
-      'city': profile['default_city'],
-      'is_active': profile['account_status'] == 'active',
-    });
+    return AppUser.fromParts(
+      profile: profile,
+      phone: _client.auth.currentUser?.phone,
+      wallet: wallet,
+    );
   }
 
-  /// تحديث اسم المستخدم في ملفه الشخصي.
-  ///
-  /// لا يوجد إنشاء هنا عمداً: المحفّز `on_auth_user_created` على `auth.users`
-  /// ينشئ صف `profiles` وصف `wallet_accounts` تلقائياً عند أول تسجيل دخول.
   Future<void> updateProfileName({
     required String userId,
     required String fullName,
@@ -72,98 +69,147 @@ class SupabaseService {
 
   // ==================== NETWORKS ====================
 
+  /// الشبكات المتاحة للعملاء: النشطة والموثّقة فقط.
   Future<List<Network>> getNetworks() async {
     final response = await _client
         .from('networks')
         .select()
-        .eq('is_active', true)
-        .order('name');
-
-    return (response as List).map((json) => Network.fromJson(json)).toList();
-  }
-
-  Future<List<NetworkPrice>> getNetworkPrices(String networkId) async {
-    final response = await _client
-        .from('network_prices')
-        .select()
-        .eq('network_id', networkId)
-        .eq('is_active', true);
+        .eq('status', 'active')
+        .eq('verification_status', 'verified')
+        .order('commercial_name');
 
     return (response as List)
-        .map((json) => NetworkPrice.fromJson(json))
+        .map((json) => Network.fromJson(json as Map<String, dynamic>))
         .toList();
   }
 
-  // ==================== CARDS & PURCHASES ====================
-
-  Future<CardModel?> getAvailableCard({
-    required String networkId,
-    required int denomination,
-  }) async {
+  /// باقات شبكة معيّنة المعروضة للبيع.
+  ///
+  /// `is_public = true` يستلزم `status = 'active'` بقيد في قاعدة البيانات،
+  /// فالشرط الواحد كافٍ.
+  Future<List<NetworkPackage>> getNetworkPackages(String networkId) async {
     final response = await _client
-        .from('cards')
+        .from('network_packages')
         .select()
         .eq('network_id', networkId)
-        .eq('denomination', denomination)
-        .eq('status', 'available')
-        .order('created_at')
-        .limit(1)
+        .eq('is_public', true)
+        .order('sort_order')
+        .order('price');
+
+    return (response as List)
+        .map((json) => NetworkPackage.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// توفّر المخزون لباقة، من `package_inventory_balances`.
+  Future<int> getAvailableUnits(String packageId) async {
+    final row = await _client
+        .from('package_inventory_balances')
+        .select('available_units')
+        .eq('package_id', packageId)
         .maybeSingle();
 
-    if (response == null) return null;
-    return CardModel.fromJson(response);
+    return (row?['available_units'] as int?) ?? 0;
   }
 
-  Future<Map<String, dynamic>?> purchaseCard({
-    required String userId,
-    required String networkId,
-    required int denomination,
+  // ==================== PURCHASES ====================
+
+  /// شراء باقة عبر `purchase_package` — عملية ذرّية تخصم من المحفظة وتحجز
+  /// كرتاً وتسجّل العمولة والتسوية.
+  ///
+  /// [idempotencyKey] يجب أن يكون UUID ثابتاً لمحاولة الشراء الواحدة: إعادة
+  /// الإرسال بنفس المفتاح تُرجع العملية الأولى بدل خصم المبلغ مرتين.
+  Future<PurchaseResult> purchasePackage({
+    required String packageId,
+    required String idempotencyKey,
   }) async {
-    try {
-      final result = await _client.rpc('purchase_card', params: {
-        'p_user_id': userId,
-        'p_network_id': networkId,
-        'p_denomination': denomination,
-      });
+    final result = await _client.rpc('purchase_package', params: {
+      'p_package_id': packageId,
+      'p_idempotency_key': idempotencyKey,
+    });
 
-      return result as Map<String, dynamic>?;
-    } catch (e) {
-      throw Exception('فشل شراء الكرت: $e');
-    }
+    return PurchaseResult.fromJson(Map<String, dynamic>.from(result as Map));
   }
 
+  /// مشتريات المستخدم مع اسم الشبكة واسم الباقة.
   Future<List<Purchase>> getUserPurchases(String userId) async {
     final response = await _client
-        .from('purchases')
-        .select('*, networks(name)')
+        .from('purchase_records')
+        .select('*, networks(commercial_name), network_packages(name)')
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 
-    return (response as List).map((json) => Purchase.fromJson(json)).toList();
+    return (response as List)
+        .map((json) => Purchase.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
+  /// يطلب كشف كرت عملية شراء.
+  ///
+  /// يعيد حمولة **مشفّرة**؛ انظر [CardSecretEnvelope] — فك التشفير يحتاج
+  /// مفتاحاً لا يملكه التطبيق بعد.
+  Future<CardSecretEnvelope> revealPurchaseCard(String purchaseId) async {
+    final result = await _client.rpc('reveal_purchase_card_secret', params: {
+      'p_purchase_id': purchaseId,
+    });
+
+    return CardSecretEnvelope.fromJson(Map<String, dynamic>.from(result as Map));
   }
 
   // ==================== WALLET ====================
 
-  Future<List<dynamic>> getWalletTransactions(String userId) async {
+  /// رصيد المحفظة عبر `get_customer_wallet` (يعمل على المستخدم الحالي).
+  Future<Map<String, dynamic>> getWallet() async {
+    final result = await _client.rpc('get_customer_wallet');
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  /// حركات المحفظة من دفتر القيود.
+  Future<List<Map<String, dynamic>>> getWalletLedger(String userId) async {
     final response = await _client
-        .from('wallet_transactions')
+        .from('customer_wallet_ledger')
         .select()
         .eq('user_id', userId)
         .order('created_at', ascending: false);
 
-    return response as List;
+    return (response as List).cast<Map<String, dynamic>>();
   }
 
-  Future<void> createDepositRequest({
-    required String userId,
+  /// وجهات الدفع المتاحة لشحن المحفظة.
+  Future<List<PaymentDestination>> getPaymentDestinations() async {
+    final result = await _client.rpc('get_active_payment_destinations');
+
+    return (result as List)
+        .map((json) =>
+            PaymentDestination.fromJson(Map<String, dynamic>.from(json as Map)))
+        .toList();
+  }
+
+  /// طلب شحن المحفظة. [referenceNumber] هو رقم الحوالة الذي يدخله المستخدم.
+  Future<Map<String, dynamic>> createDepositRequest({
     required int amount,
-    required String paymentMethod,
+    required String referenceNumber,
+    required String paymentDestinationId,
+    String? proofStoragePath,
   }) async {
-    await _client.from('wallet_deposit_requests').insert({
-      'user_id': userId,
-      'amount': amount,
-      'payment_method': paymentMethod,
-      'status': 'pending',
+    final result = await _client.rpc('create_wallet_deposit_request', params: {
+      'p_amount': amount,
+      'p_reference_number': referenceNumber,
+      'p_payment_destination_id': paymentDestinationId,
+      'p_proof_storage_path': proofStoragePath,
     });
+
+    return Map<String, dynamic>.from(result as Map);
+  }
+
+  /// طلبات الشحن السابقة وحالاتها.
+  Future<List<Map<String, dynamic>>> getDepositRequests(String userId) async {
+    final response = await _client
+        .from('wallet_deposit_requests')
+        .select()
+        .eq('user_id', userId)
+        .order('created_at', ascending: false);
+
+    return (response as List).cast<Map<String, dynamic>>();
   }
 }

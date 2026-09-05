@@ -8,10 +8,28 @@ import 'deposit_screen.dart';
 class WalletScreen extends ConsumerWidget {
   const WalletScreen({super.key});
 
+  /// يترجم `reference_type` من دفتر القيود إلى وصف عربي.
+  String _referenceLabel(Object? referenceType) {
+    switch (referenceType) {
+      case 'DEPOSIT':
+        return 'شحن المحفظة';
+      case 'PURCHASE':
+        return 'شراء باقة';
+      case 'REFUND':
+        return 'استرداد';
+      case 'SETTLEMENT':
+        return 'تسوية';
+      case 'ADJUSTMENT':
+        return 'تسوية يدوية';
+      default:
+        return 'حركة';
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final userAsync = ref.watch(userProfileProvider);
-    final transactionsAsync = ref.watch(walletTransactionsProvider);
+    final transactionsAsync = ref.watch(walletLedgerProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -86,8 +104,8 @@ class WalletScreen extends ConsumerWidget {
                   itemCount: transactions.length,
                   itemBuilder: (context, index) {
                     final tx = transactions[index];
-                    final isCredit =
-                        tx['type'] == 'deposit' || tx['type'] == 'refund';
+                    // entry_type: CREDIT | DEBIT | REVERSAL
+                    final isCredit = tx['entry_type'] != 'DEBIT';
                     return ListTile(
                       leading: CircleAvatar(
                         backgroundColor: isCredit
@@ -98,7 +116,7 @@ class WalletScreen extends ConsumerWidget {
                           color: isCredit ? AppTheme.accent : AppTheme.error,
                         ),
                       ),
-                      title: Text(tx['description'] ?? 'معاملة'),
+                      title: Text(_referenceLabel(tx['reference_type'])),
                       subtitle: Text(tx['created_at']?.toString() ?? ''),
                       trailing: Text(
                         '${isCredit ? '+' : '-'}${tx['amount']} ر.ي',

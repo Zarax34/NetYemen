@@ -3,7 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/user_model.dart';
 import '../models/network_model.dart';
-import '../models/card_model.dart';
+import '../models/purchase_model.dart';
+import '../models/payment_destination_model.dart';
 import '../services/supabase_service.dart';
 
 // Service
@@ -46,13 +47,27 @@ final userPurchasesProvider = FutureProvider<List<Purchase>>((ref) async {
   return await service.getUserPurchases(user.id);
 });
 
+// Packages of a given network
+final networkPackagesProvider =
+    FutureProvider.family<List<NetworkPackage>, String>((ref, networkId) async {
+  final service = ref.watch(supabaseServiceProvider);
+  return await service.getNetworkPackages(networkId);
+});
+
 // Wallet
-final walletTransactionsProvider = FutureProvider<List<dynamic>>((ref) async {
+final walletLedgerProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user == null) return [];
 
   final service = ref.watch(supabaseServiceProvider);
-  return await service.getWalletTransactions(user.id);
+  return await service.getWalletLedger(user.id);
+});
+
+final paymentDestinationsProvider =
+    FutureProvider<List<PaymentDestination>>((ref) async {
+  final service = ref.watch(supabaseServiceProvider);
+  return await service.getPaymentDestinations();
 });
 
 final walletBalanceProvider = Provider<int>((ref) {
@@ -66,4 +81,4 @@ final walletBalanceProvider = Provider<int>((ref) {
 
 // UI State
 final selectedTabProvider = StateProvider<int>((ref) => 0);
-final selectedDenominationProvider = StateProvider<int?>((ref) => null);
+final selectedPackageIdProvider = StateProvider<String?>((ref) => null);

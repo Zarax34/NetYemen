@@ -119,7 +119,7 @@ class NetworkCard extends StatelessWidget {
                   CircleAvatar(
                     backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
                     child: Text(
-                      network.name.isNotEmpty ? network.name[0] : '?',
+                      network.commercialName.isNotEmpty ? network.commercialName[0] : '?',
                       style: const TextStyle(
                         color: AppTheme.primary,
                         fontWeight: FontWeight.bold,
@@ -132,7 +132,7 @@ class NetworkCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          network.name,
+                          network.commercialName,
                           style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -145,23 +145,6 @@ class NetworkCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (network.isFeatured)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'مميز',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppTheme.accentDark,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
                 ],
               ),
             ],

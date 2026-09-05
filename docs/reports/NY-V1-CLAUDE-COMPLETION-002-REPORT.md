@@ -75,9 +75,8 @@ The Node public-legal gate was also run in full: syntax checks, verifier
 self-test (`PASS`), artifact generation, no unsubstituted `{{PLACEHOLDER}}`
 tokens, and `request_my_account_deletion` present in the generated client.
 
-The Android app-bundle build is the one CI step not reproduced here: no Android
-SDK is installed in this environment. It is unaffected by any change in this
-task.
+The Android app-bundle build is the one CI step not reproduced locally: no
+Android SDK is installed in this environment. It is covered by the CI run below.
 
 ### Static security gates
 
@@ -89,6 +88,31 @@ logic was re-executed directly against the same sources:
 | Secret / key prohibition (JWTs, 16-digit numbers, hardcoded passwords & API keys) | PASS — 0 matches |
 | Card secret prohibition (OD-CARD-01) | PASS — 178 files scanned, 0 matches |
 | Release readiness (SDK pinning, fail-closed signing, legal URLs, deletion RPC binding, forced RLS, hosted page templates) | PASS — 0 violations |
+
+### CI result on the pushed branch
+
+The push of this work produced the **first two workflow runs this repository has
+ever had**. Both are green.
+
+`NetYemen Supabase Core CI` — [run 33962592630](https://github.com/Zarax34/NetYemen/actions/runs/33962592630),
+14/14 steps, including the new `Verify Wallet Ledger Reconciliation
+(OD-WALLET-01)` step. The static verification step confirms the card-secret gate
+fix on the runner itself:
+
+```
+NetYemen Card Secret Prohibition Scan
+Scanning 179 source file(s) under /home/runner/work/NetYemen/NetYemen
+RESULT: PASS (no plaintext card/voucher secrets detected)
+```
+
+That file count is the evidence: before the fix the same step reported PASS
+having scanned nothing. The secret, financial-invariant, and FCM-credential
+scans also pass.
+
+`Flutter CI` — [run 33962592613](https://github.com/Zarax34/NetYemen/actions/runs/33962592613),
+16/16 steps: locked dependencies, formatting, analysis, release-readiness guards,
+the public-legal generator, the test suite, the **Android release app bundle**,
+and the admin web console artifact.
 
 ---
 

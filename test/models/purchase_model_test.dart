@@ -95,21 +95,32 @@ void main() {
     });
   });
 
-  group('CardSecretEnvelope', () {
-    test('carries the encrypted payload rather than a plaintext number', () {
-      final envelope = CardSecretEnvelope.fromJson({
+  group('CardRevealResult', () {
+    test('carries the plaintext PIN reveal_purchase_card_secret returns', () {
+      final result = CardRevealResult.fromJson({
         'purchase_id': 'pur-1',
         'status': 'revealed',
-        'key_version': 'v1',
-        'ciphertext_b64': 'Y2lwaGVy',
-        'nonce': 'bm9uY2U=',
-        'auth_tag_b64': 'dGFn',
+        'card_pin': '1234-5678-9012',
       });
 
-      expect(envelope.keyVersion, 'v1');
-      expect(envelope.ciphertextB64, 'Y2lwaGVy');
-      expect(envelope.nonce, 'bm9uY2U=');
-      expect(envelope.authTagB64, 'dGFn');
+      expect(result.purchaseId, 'pur-1');
+      expect(result.status, 'revealed');
+      expect(result.cardPin, '1234-5678-9012');
+    });
+  });
+
+  group('maskCardPin', () {
+    test('keeps the first two and last two characters visible', () {
+      expect(maskCardPin('1234-5678-9012'), '12****12');
+    });
+
+    test('masks a short pin completely instead of exposing it', () {
+      expect(maskCardPin('1234'), '****');
+      expect(maskCardPin('12'), '**');
+    });
+
+    test('masks an empty pin to an empty string', () {
+      expect(maskCardPin(''), '');
     });
   });
 }

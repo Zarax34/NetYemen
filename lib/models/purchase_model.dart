@@ -97,36 +97,36 @@ class PurchaseResult {
   }
 }
 
-/// حمولة الكرت كما يعيدها `reveal_purchase_card_secret` — **مشفّرة**.
+/// نتيجة `reveal_purchase_card_secret` — رقم الكرت **صريحاً**.
 ///
-/// الخادم لا يعيد رقم الكرت نصاً صريحاً، بل نص مشفّر يحتاج مفتاح فك بإصدار
-/// [keyVersion]. لا توجد بعد آلية لتسليم هذا المفتاح إلى التطبيق، لذا لا
-/// يستطيع العميل عرض الرقم حتى تُضاف تلك الآلية.
-class CardSecretEnvelope {
+/// الخادم يفكّ التشفير داخل قاعدة البيانات (`pgcrypto`) ولا يعيد الرقم إلا
+/// لصاحب الشراء المتحقَّق منه فعلياً، بعد تسجيل حدث تدقيق `CARD_REVEALED`.
+/// لا يُخزَّن هذا الرقم محلياً بعد إغلاق الشاشة التي طلبته.
+class CardRevealResult {
   final String purchaseId;
   final String status;
-  final String keyVersion;
-  final String ciphertextB64;
-  final String nonce;
-  final String? authTagB64;
+  final String cardPin;
 
-  const CardSecretEnvelope({
+  const CardRevealResult({
     required this.purchaseId,
     required this.status,
-    required this.keyVersion,
-    required this.ciphertextB64,
-    required this.nonce,
-    this.authTagB64,
+    required this.cardPin,
   });
 
-  factory CardSecretEnvelope.fromJson(Map<String, dynamic> json) {
-    return CardSecretEnvelope(
+  factory CardRevealResult.fromJson(Map<String, dynamic> json) {
+    return CardRevealResult(
       purchaseId: json['purchase_id'] ?? '',
       status: json['status'] ?? '',
-      keyVersion: json['key_version'] ?? '',
-      ciphertextB64: json['ciphertext_b64'] ?? '',
-      nonce: json['nonce'] ?? '',
-      authTagB64: json['auth_tag_b64'],
+      cardPin: json['card_pin'] ?? '',
     );
   }
+}
+
+/// يموّه رقم كرت للعرض في القوائم قبل كشفه، مثل `12****89`.
+///
+/// يُبقي أول رقمين وآخر رقمين ظاهرين فقط؛ رقم من 4 خانات فأقل يُموَّه بالكامل
+/// حتى لا يُكشف أي جزء منه بالخطأ.
+String maskCardPin(String pin) {
+  if (pin.length <= 4) return '*' * pin.length;
+  return '${pin.substring(0, 2)}****${pin.substring(pin.length - 2)}';
 }

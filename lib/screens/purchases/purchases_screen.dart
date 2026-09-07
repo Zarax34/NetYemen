@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import '../../utils/app_theme.dart';
+import '../../widgets/card_pin_reveal.dart';
 
 class PurchasesScreen extends ConsumerWidget {
   const PurchasesScreen({super.key});
@@ -100,7 +101,7 @@ class PurchasesScreen extends ConsumerWidget {
                       Row(
                         children: [
                           const Icon(
-                            Icons.lock_outline,
+                            Icons.wifi,
                             size: 18,
                             color: AppTheme.textMuted,
                           ),
@@ -116,6 +117,29 @@ class PurchasesScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
+                      if (purchase.isCompleted) ...[
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.confirmation_number_outlined,
+                              size: 18,
+                              color: AppTheme.textMuted,
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'رقم الكرت: ',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: AppTheme.textSecondary,
+                              ),
+                            ),
+                            Expanded(
+                              child: CardPinReveal(purchaseId: purchase.id),
+                            ),
+                          ],
+                        ),
+                      ],
                     ],
                   ),
                 ),

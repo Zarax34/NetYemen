@@ -1,12 +1,13 @@
 // lib/screens/home/purchase_success_screen.dart
 import 'package:flutter/material.dart';
 import '../../utils/app_theme.dart';
+import '../../widgets/card_pin_reveal.dart';
 
 /// تأكيد الشراء.
 ///
-/// لا يعرض رقم الكرت: الكروت مخزّنة مشفّرة في `card_vault`، و
-/// `reveal_purchase_card_secret` يعيد نصاً مشفّراً يحتاج مفتاح فك لا يملكه
-/// التطبيق. عرض الرقم يتطلب إضافة آلية تسليم المفتاح أولاً.
+/// يعرض رقم الكرت مموّهاً افتراضياً؛ اللمس يستدعي `reveal_purchase_card_secret`
+/// (يفكّ التشفير داخل قاعدة البيانات ويسجّل حدث تدقيق) ويكشف الرقم صريحاً
+/// لصاحب الشراء فقط، مع زر نسخ.
 class PurchaseSuccessScreen extends StatelessWidget {
   final String purchaseId;
   final String packageName;
@@ -65,20 +66,20 @@ class PurchaseSuccessScreen extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppTheme.warning.withValues(alpha: 0.12),
+                  color: AppTheme.accent.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.warning),
+                  border: Border.all(color: AppTheme.accent),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Row(
                       children: [
-                        Icon(Icons.lock_outline, color: AppTheme.warning),
+                        Icon(Icons.confirmation_number_outlined, color: AppTheme.accentDark),
                         SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            'رقم الكرت غير متاح للعرض بعد',
+                            'رقم الكرت',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
@@ -88,11 +89,7 @@ class PurchaseSuccessScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'الكرت محجوز باسمك ومسجّل في مشترياتك. كشف الرقم داخل '
-                      'التطبيق يحتاج تفعيل فك التشفير من جهة النظام.',
-                      style: TextStyle(fontSize: 13),
-                    ),
+                    CardPinReveal(purchaseId: purchaseId),
                     const SizedBox(height: 12),
                     SelectableText(
                       'رقم العملية: $purchaseId',

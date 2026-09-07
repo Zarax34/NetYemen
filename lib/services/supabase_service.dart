@@ -144,16 +144,17 @@ class SupabaseService {
         .toList();
   }
 
-  /// يطلب كشف كرت عملية شراء.
+  /// يكشف رقم كرت عملية شراء مكتملة — **صريحاً** — لصاحب الشراء فقط.
   ///
-  /// يعيد حمولة **مشفّرة**؛ انظر [CardSecretEnvelope] — فك التشفير يحتاج
-  /// مفتاحاً لا يملكه التطبيق بعد.
-  Future<CardSecretEnvelope> revealPurchaseCard(String purchaseId) async {
+  /// `reveal_purchase_card_secret` يتحقق من الملكية، يفكّ التشفير داخل
+  /// قاعدة البيانات (pgcrypto)، ويسجّل حدث تدقيق `CARD_REVEALED` قبل أن يعيد
+  /// النتيجة؛ انظر [CardRevealResult].
+  Future<CardRevealResult> revealPurchaseCard(String purchaseId) async {
     final result = await _client.rpc('reveal_purchase_card_secret', params: {
       'p_purchase_id': purchaseId,
     });
 
-    return CardSecretEnvelope.fromJson(Map<String, dynamic>.from(result as Map));
+    return CardRevealResult.fromJson(Map<String, dynamic>.from(result as Map));
   }
 
   // ==================== WALLET ====================

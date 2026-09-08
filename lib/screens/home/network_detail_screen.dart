@@ -180,13 +180,37 @@ class _NetworkDetailScreenState extends ConsumerState<NetworkDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  widget.network.commercialName,
-                  style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        widget.network.commercialName,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (widget.network.isVerified) ...[
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.verified_user_rounded,
+                        color: Colors.greenAccent,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'موثّقة',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.greenAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(

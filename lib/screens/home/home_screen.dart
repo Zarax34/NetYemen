@@ -131,12 +131,36 @@ class NetworkCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          network.commercialName,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                network.commercialName,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (network.isVerified) ...[
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.verified_user_rounded,
+                                color: Colors.green,
+                                size: 16,
+                              ),
+                              const SizedBox(width: 2),
+                              const Text(
+                                'موثّقة',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.green,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
                         ),
                         Text(
                           network.locationText,

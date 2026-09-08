@@ -738,29 +738,91 @@
   // ---------- خزنة الكروت ----------
 
   views.cards = function () {
-    return db.from('networks').select('id, commercial_name').order('commercial_name')
-      .then(function (r) {
-        if (r.error) throw r.error;
-        var options = r.data.map(function (n) {
+    return Promise.all([
+      db.from('networks').select('id, commercial_name').order('commercial_name'),
+      db.from('network_packages').select('id, network_id, name').order('name')
+    ]).then(function (res) {
+        if (res[0].error) throw res[0].error;
+        if (res[1].error) throw res[1].error;
+        var networks = res[0].data;
+        var packages = res[1].data;
+
+        var options = networks.map(function (n) {
           return '<option value="' + esc(n.id) + '">' + esc(n.commercial_name) + '</option>';
         }).join('');
 
         viewEl.innerHTML =
           '<h2>خزنة الكروت</h2>' +
-          '<div class="note">' +
-            '<strong>رفع الكروت معطّل — ينقص مفتاح التشفير.</strong><br>' +
-            'الكروت تُخزَّن مشفّرة في <code>card_vault</code>، و<code>admin_ingest_card_vault_batch</code> ' +
-            'يستقبل <code>ciphertext</code> و<code>nonce</code> و<code>auth_tag</code> — أي أنه يتوقع كروتاً ' +
-            'مشفّرة مسبقاً. وبالمثل يعيد <code>reveal_purchase_card_secret</code> نصاً مشفّراً للعميل. ' +
-            'لا يوجد بعد مكان يحمل مفتاح التشفير ولا خدمة تشفّر وتفكّ. ' +
-            'الحل المقترح في <code>docs/CARD-ENCRYPTION-DESIGN.md</code>: دالة Edge تحتفظ بالمفتاح في ' +
-            'أسرار Supabase وتشفّر عند الرفع وتفكّ عند الكشف — فلا يغادر المفتاح الخادم أبداً.' +
+          '<div class="card"><h3>رفع دفعة كروت</h3>' +
+            '<div class="grid2">' +
+              '<div><label>الشبكة</label><select id="c-up-network">' + options + '</select></div>' +
+              '<div><label>الباقة</label><select id="c-up-package"></select></div>' +
+            '</div>' +
+            '<label>تاريخ الانتهاء (اختياري)</label><input type="date" id="c-up-expires">' +
+            '<label>أرقام الكروت (PINs) — رقم في كل سطر</label><textarea id="c-up-pins" rows="5"></textarea>' +
+            '<button class="btn-primary" id="c-upload" style="margin-top:12px">رفع الكروت</button>' +
           '</div>' +
           '<div class="card" style="margin-top:16px"><h3>الكروت الحالية</h3>' +
             '<label>الشبكة</label><select id="c-network">' + options + '</select>' +
             '<button class="btn-ghost" id="c-load" style="margin-top:12px">عرض البيانات الوصفية</button>' +
             '<div id="c-result" style="margin-top:16px"></div>' +
           '</div>';
+
+        var packagesByNetwork = {};
+        packages.forEach(function(p) {
+          if (!packagesByNetwork[p.network_id]) packagesByNetwork[p.network_id] = [];
+          packagesByNetwork[p.network_id].push(p);
+        });
+
+        var netSelect = document.getElementById('c-up-network');
+        var pkgSelect = document.getElementById('c-up-package');
+        
+        function filterPackages() {
+          var nid = netSelect.value;
+          pkgSelect.innerHTML = '';
+          var pkgs = packagesByNetwork[nid] || [];
+          pkgs.forEach(function(p) {
+            var opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            pkgSelect.appendChild(opt);
+          });
+        }
+        if (netSelect) {
+          netSelect.onchange = filterPackages;
+          filterPackages();
+        }
+
+        document.getElementById('c-upload').onclick = function () {
+          var nid = netSelect.value;
+          var pid = pkgSelect.value;
+          var pinsText = document.getElementById('c-up-pins').value;
+          var expires = document.getElementById('c-up-expires').value;
+          
+          if (!nid || !pid) return toast('اختر الشبكة والباقة', true);
+          
+          var pins = pinsText.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+          if (!pins.length) return toast('أدخل كرت واحد على الأقل', true);
+          
+          var p_cards = pins.map(function(pin) {
+            return { pin: pin, expires_at: expires || null };
+          });
+
+          var btn = this;
+          btn.disabled = true;
+          rpc('admin_ingest_card_vault_batch', {
+            p_network_id: nid,
+            p_package_id: pid,
+            p_cards: p_cards
+          }).then(function (r) { 
+            toast('تم رفع ' + r.ingested_count + ' كرت بنجاح (رقم الدفعة: ' + r.batch_id + ')');
+            document.getElementById('c-up-pins').value = '';
+            if (document.getElementById('c-network').value === nid) {
+              document.getElementById('c-load').click();
+            }
+          }).catch(function (e) { toast(errText(e), true); })
+            .finally(function () { btn.disabled = false; });
+        };
 
         document.getElementById('c-load').onclick = function () {
           var networkId = document.getElementById('c-network').value;

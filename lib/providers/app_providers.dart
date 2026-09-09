@@ -82,3 +82,30 @@ final walletBalanceProvider = Provider<int>((ref) {
 // UI State
 final selectedTabProvider = StateProvider<int>((ref) => 0);
 final selectedPackageIdProvider = StateProvider<String?>((ref) => null);
+
+// Notifications
+final notificationsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return [];
+
+  final service = ref.watch(supabaseServiceProvider);
+  return await service.listMyNotifications();
+});
+
+final unreadNotificationCountProvider = FutureProvider<int>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return 0;
+
+  final service = ref.watch(supabaseServiceProvider);
+  return await service.getUnreadNotificationCount();
+});
+
+final notificationPreferencesProvider =
+    FutureProvider<Map<String, dynamic>>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return {};
+
+  final service = ref.watch(supabaseServiceProvider);
+  return await service.getNotificationPreferences();
+});

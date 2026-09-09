@@ -4,6 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import '../../utils/app_theme.dart';
 import '../auth/login_screen.dart';
+import 'about_screen.dart';
+import 'edit_profile_screen.dart';
+import 'help_screen.dart';
+import 'notification_preferences_screen.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -90,7 +94,12 @@ class ProfileScreen extends ConsumerWidget {
                 context,
                 icon: Icons.person_outline,
                 title: 'تعديل الملف الشخصي',
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                  );
+                },
               ),
               _buildListTile(
                 context,
@@ -98,7 +107,26 @@ class ProfileScreen extends ConsumerWidget {
                 title: 'الموقع',
                 subtitle:
                     '${user.defaultGovernorate ?? '---'} - ${user.defaultCity ?? '---'}',
-                onTap: () {},
+                onTap: () {
+                  // الموقع يُعدَّل من شاشة تعديل الملف الشخصي (المحافظة والمدينة)
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const EditProfileScreen()),
+                  );
+                },
+              ),
+              _buildListTile(
+                context,
+                icon: Icons.notifications_outlined,
+                title: 'إعدادات الإشعارات',
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const NotificationPreferencesScreen(),
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 16),
@@ -107,14 +135,24 @@ class ProfileScreen extends ConsumerWidget {
                 context,
                 icon: Icons.help_outline,
                 title: 'المساعدة',
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HelpScreen()),
+                  );
+                },
               ),
               _buildListTile(
                 context,
                 icon: Icons.info_outline,
                 title: 'عن التطبيق',
                 subtitle: 'الإصدار 1.0.0',
-                onTap: () {},
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AboutScreen()),
+                  );
+                },
               ),
 
               const SizedBox(height: 32),

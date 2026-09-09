@@ -213,4 +213,75 @@ class SupabaseService {
 
     return (response as List).cast<Map<String, dynamic>>();
   }
+
+  // ==================== PROFILE UPDATE ====================
+
+  /// تحديث الملف الشخصي: الاسم والمحافظة والمدينة.
+  ///
+  /// سياسة RLS `profiles_update_policy` تسمح للمستخدم بتحديث صفّه فقط.
+  Future<void> updateProfile({
+    required String userId,
+    required String fullName,
+    String? defaultGovernorate,
+    String? defaultCity,
+  }) async {
+    await _client.from('profiles').update({
+      'full_name': fullName,
+      'default_governorate': defaultGovernorate,
+      'default_city': defaultCity,
+    }).eq('id', userId);
+  }
+
+  // ==================== NOTIFICATIONS ====================
+
+  /// إشعارات المستخدم الحالي عبر `list_my_notifications`.
+  Future<List<Map<String, dynamic>>> listMyNotifications({
+    int limit = 50,
+    bool unreadOnly = false,
+  }) async {
+    final result = await _client.rpc('list_my_notifications', params: {
+      'p_limit': limit,
+      'p_unread_only': unreadOnly,
+    });
+    return List<Map<String, dynamic>>.from(result as List? ?? []);
+  }
+
+  /// عدد الإشعارات غير المقروءة عبر `get_unread_notification_count`.
+  Future<int> getUnreadNotificationCount() async {
+    final result = await _client.rpc('get_unread_notification_count');
+    if (result is int) return result;
+    if (result is Map) return (result['count'] ?? 0) as int;
+    return 0;
+  }
+
+  /// تأشير إشعار كمقروء عبر `mark_notification_read`.
+  Future<void> markNotificationRead(String inboxId) async {
+    await _client.rpc('mark_notification_read', params: {
+      'p_inbox_id': inboxId,
+    });
+  }
+
+  /// إعدادات الإشعارات الحالية عبر `get_notification_preferences`.
+  Future<Map<String, dynamic>> getNotificationPreferences() async {
+    final result = await _client.rpc('get_notification_preferences');
+    return Map<String, dynamic>.from(result as Map? ?? {});
+  }
+
+  /// تحديث إعدادات الإشعارات عبر `update_notification_preferences`.
+  Future<void> updateNotificationPreferences({
+    required bool networkAddedEnabled,
+    required bool packageAddedEnabled,
+    required bool stockRestoredEnabled,
+    required bool platformUpdatesEnabled,
+    required bool offersAnnouncementsEnabled,
+  }) async {
+    await _client.rpc('update_notification_preferences', params: {
+      'p_network_added_enabled': networkAddedEnabled,
+      'p_package_added_enabled': packageAddedEnabled,
+      'p_stock_restored_enabled': stockRestoredEnabled,
+      'p_platform_updates_enabled': platformUpdatesEnabled,
+      'p_offers_announcements_enabled': offersAnnouncementsEnabled,
+    });
+  }
 }
+

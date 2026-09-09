@@ -165,7 +165,7 @@ BEGIN
 
     RETURN jsonb_build_object('batch_id', v_batch_id, 'ingested_count', v_inserted);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, pg_temp;
 
 REVOKE EXECUTE ON FUNCTION public.admin_ingest_card_vault_batch(UUID, UUID, JSONB[]) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.admin_ingest_card_vault_batch(UUID, UUID, JSONB[]) TO authenticated;
@@ -339,7 +339,7 @@ BEGIN
         'card_pin', v_pin
     );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, extensions, pg_temp;
 
 REVOKE EXECUTE ON FUNCTION public.reveal_purchase_card_secret(UUID) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.reveal_purchase_card_secret(UUID) TO authenticated;

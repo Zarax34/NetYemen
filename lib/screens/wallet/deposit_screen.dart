@@ -111,9 +111,9 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'المبلغ',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -125,33 +125,43 @@ class _DepositScreenState extends ConsumerState<DepositScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'وجهة الدفع',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             destinationsAsync.when(
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Text(
-                'تعذّر تحميل وجهات الدفع\n$e',
-                style: const TextStyle(color: AppTheme.textSecondary),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, _) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      const Icon(Icons.error_outline_rounded, size: 48, color: AppTheme.error),
+                      const SizedBox(height: 8),
+                      Text('تعذّر تحميل وجهات الدفع', style: Theme.of(context).textTheme.bodyMedium),
+                    ],
+                  ),
+                ),
               ),
               data: (destinations) => destinations.isEmpty
-                  ? const Text(
-                      'لا توجد وجهات دفع مفعّلة حالياً',
-                      style: TextStyle(color: AppTheme.textSecondary),
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Text(
+                          'لا توجد وجهات دفع مفعّلة حالياً',
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppTheme.textMuted),
+                        ),
+                      ),
                     )
                   : Column(
-                      children: destinations
-                          .map((d) => _destinationTile(d))
-                          .toList(),
+                      children: destinations.map((d) => _destinationTile(d)).toList(),
                     ),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'رقم الحوالة',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             TextField(

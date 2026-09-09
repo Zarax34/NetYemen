@@ -120,26 +120,40 @@ class _NetworkDetailScreenState extends ConsumerState<NetworkDetailScreen> {
                   const SizedBox(height: 16),
                   Expanded(
                     child: packagesAsync.when(
-                      loading: () =>
-                          const Center(child: CircularProgressIndicator()),
+                      loading: () => const Center(child: CircularProgressIndicator()),
                       error: (e, _) => Center(
-                        child: Text(
-                          'تعذّر تحميل الباقات\n$e',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(color: AppTheme.textSecondary),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline_rounded, size: 48, color: AppTheme.error),
+                            const SizedBox(height: 12),
+                            Text(
+                              'تعذّر تحميل الباقات\n$e',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                          ],
                         ),
                       ),
                       data: (packages) => packages.isEmpty
-                          ? const Center(
-                              child: Text(
-                                'لا توجد باقات معروضة لهذه الشبكة حالياً',
-                                style: TextStyle(color: AppTheme.textSecondary),
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.shopping_bag_outlined, size: 64, color: AppTheme.border),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'لا توجد باقات معروضة',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          color: AppTheme.textMuted,
+                                        ),
+                                  ),
+                                ],
                               ),
                             )
                           : ListView.separated(
                               itemCount: packages.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 12),
+                              separatorBuilder: (_, __) => const SizedBox(height: 12),
                               itemBuilder: (_, i) => _packageTile(packages[i]),
                             ),
                     ),
@@ -156,8 +170,10 @@ class _NetworkDetailScreenState extends ConsumerState<NetworkDetailScreen> {
 
   Widget _header() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      color: AppTheme.primary,
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        gradient: AppTheme.primaryGradient,
+      ),
       width: double.infinity,
       child: Row(
         children: [

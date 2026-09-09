@@ -46,20 +46,27 @@ class PurchaseSuccessScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 24),
-              const Text(
+              Text(
                 'تم الشراء بنجاح!',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.textPrimary,
+                    ),
               ),
               const SizedBox(height: 8),
               Text(
                 '$networkName - $packageName',
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 4),
               Text(
                 'خُصم $amountPaid ر.ي من محفظتك',
-                style: const TextStyle(color: AppTheme.textSecondary),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppTheme.textSecondary,
+                    ),
               ),
               const SizedBox(height: 32),
               Container(
@@ -73,17 +80,16 @@ class PurchaseSuccessScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.confirmation_number_outlined, color: AppTheme.accentDark),
-                        SizedBox(width: 12),
+                        const Icon(Icons.confirmation_number_outlined, color: AppTheme.accentDark),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             'رقم الكرت',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
+                            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                ),
                           ),
                         ),
                       ],
@@ -93,10 +99,9 @@ class PurchaseSuccessScreen extends StatelessWidget {
                     const SizedBox(height: 12),
                     SelectableText(
                       'رقم العملية: $purchaseId',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: AppTheme.textSecondary,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: AppTheme.textSecondary,
+                          ),
                     ),
                   ],
                 ),

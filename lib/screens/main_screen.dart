@@ -2,7 +2,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/app_providers.dart';
-import '../utils/app_theme.dart';
 import 'home/home_screen.dart';
 import 'wallet/wallet_screen.dart';
 import 'purchases/purchases_screen.dart';
@@ -50,11 +49,6 @@ class MainScreen extends ConsumerWidget {
         currentIndex: selectedTab,
         onTap: (index) => ref.read(selectedTabProvider.notifier).state = index,
         items: _navItems,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppTheme.primary,
-        unselectedItemColor: AppTheme.textMuted,
-        backgroundColor: AppTheme.surface,
-        elevation: 8,
       ),
     );
   }

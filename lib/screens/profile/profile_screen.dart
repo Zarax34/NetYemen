@@ -32,7 +32,16 @@ class ProfileScreen extends ConsumerWidget {
       body: userAsync.when(
         data: (user) {
           if (user == null) {
-            return const Center(child: Text('لم يتم العثور على المستخدم'));
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.person_off_outlined, size: 64, color: AppTheme.border),
+                  const SizedBox(height: 16),
+                  Text('لم يتم العثور على المستخدم', style: Theme.of(context).textTheme.titleMedium),
+                ],
+              ),
+            );
           }
 
           return ListView(
@@ -42,32 +51,33 @@ class ProfileScreen extends ConsumerWidget {
               Center(
                 child: Column(
                   children: [
-                    CircleAvatar(
-                      radius: 50,
-                      backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
+                    Container(
+                      width: 100,
+                      height: 100,
+                      decoration: const BoxDecoration(
+                        gradient: AppTheme.primaryGradient,
+                        shape: BoxShape.circle,
+                      ),
+                      alignment: Alignment.center,
                       child: Text(
                         user.fullName?.isNotEmpty == true
                             ? user.fullName![0]
                             : user.phone[0],
-                        style: const TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primary,
-                        ),
+                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
                       ),
                     ),
                     const SizedBox(height: 16),
                     Text(
                       user.fullName ?? 'مستخدم',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       user.phone,
-                      style: const TextStyle(color: AppTheme.textSecondary),
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
                   ],
                 ),
@@ -75,13 +85,15 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 32),
 
               // Settings
-              _buildSectionTitle('الإعدادات'),
+              _buildSectionTitle(context, 'الإعدادات'),
               _buildListTile(
+                context,
                 icon: Icons.person_outline,
                 title: 'تعديل الملف الشخصي',
                 onTap: () {},
               ),
               _buildListTile(
+                context,
                 icon: Icons.location_on_outlined,
                 title: 'الموقع',
                 subtitle:
@@ -90,13 +102,15 @@ class ProfileScreen extends ConsumerWidget {
               ),
 
               const SizedBox(height: 16),
-              _buildSectionTitle('الدعم'),
+              _buildSectionTitle(context, 'الدعم'),
               _buildListTile(
+                context,
                 icon: Icons.help_outline,
                 title: 'المساعدة',
                 onTap: () {},
               ),
               _buildListTile(
+                context,
                 icon: Icons.info_outline,
                 title: 'عن التطبيق',
                 subtitle: 'الإصدار 1.0.0',
@@ -121,25 +135,35 @@ class ProfileScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(child: Text('حدث خطأ')),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Text(
-        title,
-        style: const TextStyle(
-          color: AppTheme.textSecondary,
-          fontWeight: FontWeight.w600,
+        error: (e, __) => Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline_rounded, size: 48, color: AppTheme.error),
+              const SizedBox(height: 16),
+              Text('حدث خطأ', style: Theme.of(context).textTheme.bodyMedium),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildListTile({
+  Widget _buildSectionTitle(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        title,
+        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+              color: AppTheme.primary,
+              fontWeight: FontWeight.w600,
+            ),
+      ),
+    );
+  }
+
+  Widget _buildListTile(
+    BuildContext context, {
     required IconData icon,
     required String title,
     String? subtitle,
@@ -149,9 +173,9 @@ class ProfileScreen extends ConsumerWidget {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: Icon(icon, color: AppTheme.primary),
-        title: Text(title),
-        subtitle: subtitle != null ? Text(subtitle) : null,
-        trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+        title: Text(title, style: Theme.of(context).textTheme.titleMedium),
+        subtitle: subtitle != null ? Text(subtitle, style: Theme.of(context).textTheme.bodySmall) : null,
+        trailing: const Icon(Icons.chevron_right_rounded, size: 24, color: AppTheme.textMuted),
         onTap: onTap,
       ),
     );

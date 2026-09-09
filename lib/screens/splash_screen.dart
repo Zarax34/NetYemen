@@ -38,9 +38,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.primary,
-      body: Center(
-        child: Column(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: AppTheme.primaryGradient,
+        ),
+        child: Center(
+          child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(
@@ -70,6 +73,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
               valueColor: AlwaysStoppedAnimation<Color>(AppTheme.textOnPrimary),
             ),
           ],
+        ),
         ),
       ),
     );

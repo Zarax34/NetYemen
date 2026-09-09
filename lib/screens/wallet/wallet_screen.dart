@@ -95,34 +95,56 @@ class WalletScreen extends ConsumerWidget {
             child: transactionsAsync.when(
               data: (transactions) {
                 if (transactions.isEmpty) {
-                  return const Center(
-                    child: Text('لا توجد حركات حالياً'),
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.receipt_long_outlined, size: 64, color: AppTheme.border),
+                        const SizedBox(height: 16),
+                        Text(
+                          'لا توجد حركات حالياً',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(color: AppTheme.textMuted),
+                        ),
+                      ],
+                    ),
                   );
                 }
 
-                return ListView.builder(
+                return ListView.separated(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
                   itemCount: transactions.length,
+                  separatorBuilder: (_, __) => const Divider(),
                   itemBuilder: (context, index) {
                     final tx = transactions[index];
                     // entry_type: CREDIT | DEBIT | REVERSAL
                     final isCredit = tx['entry_type'] != 'DEBIT';
+                    final date = tx['created_at'] != null 
+                        ? DateTime.tryParse(tx['created_at'].toString()) 
+                        : null;
+                        
                     return ListTile(
+                      contentPadding: EdgeInsets.zero,
                       leading: CircleAvatar(
                         backgroundColor: isCredit
                             ? AppTheme.accent.withValues(alpha: 0.1)
                             : AppTheme.error.withValues(alpha: 0.1),
                         child: Icon(
                           isCredit ? Icons.arrow_downward : Icons.arrow_upward,
-                          color: isCredit ? AppTheme.accent : AppTheme.error,
+                          color: isCredit ? AppTheme.accentDark : AppTheme.error,
                         ),
                       ),
-                      title: Text(_referenceLabel(tx['reference_type'])),
-                      subtitle: Text(tx['created_at']?.toString() ?? ''),
+                      title: Text(
+                        _referenceLabel(tx['reference_type']),
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      subtitle: Text(
+                        date != null ? '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}' : '',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
                       trailing: Text(
                         '${isCredit ? '+' : '-'}${tx['amount']} ر.ي',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: isCredit ? AppTheme.accent : AppTheme.error,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: isCredit ? AppTheme.accentDark : AppTheme.error,
                         ),
                       ),
                     );
@@ -130,7 +152,16 @@ class WalletScreen extends ConsumerWidget {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Center(child: Text('حدث خطأ')),
+              error: (e, __) => Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.error_outline_rounded, size: 48, color: AppTheme.error),
+                    const SizedBox(height: 16),
+                    Text('تعذّر تحميل الحركات', style: Theme.of(context).textTheme.bodyMedium),
+                  ],
+                ),
+              ),
             ),
           ),
         ],

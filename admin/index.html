@@ -1,856 +1,106 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NetYemen — لوحة الإدارة</title>
-<style>
-  :root {
-    --primary: #1E3A5F;
-    --primary-light: #2A4A73;
-    --accent: #2ECC71;
-    --error: #E74C3C;
-    --warning: #F39C12;
-    --bg: #F8F9FA;
-    --surface: #FFFFFF;
-    --border: #E0E0E0;
-    --text: #1A1A2E;
-    --muted: #6B7280;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: "Segoe UI", Tahoma, system-ui, sans-serif;
-    background: var(--bg);
-    color: var(--text);
-  }
-  button {
-    font-family: inherit;
-    cursor: pointer;
-    border: none;
-    border-radius: 8px;
-    padding: 10px 16px;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  button:disabled { opacity: .55; cursor: not-allowed; }
-  .btn-primary { background: var(--primary); color: #fff; }
-  .btn-accent  { background: var(--accent); color: #fff; }
-  .btn-danger  { background: var(--error); color: #fff; }
-  .btn-ghost   { background: transparent; color: var(--primary); border: 1px solid var(--border); }
-  input, select, textarea {
-    font-family: inherit;
-    font-size: 14px;
-    padding: 10px 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface);
-    width: 100%;
-  }
-  label { display: block; font-size: 13px; font-weight: 600; margin: 12px 0 4px; }
-
-  /* Login */
-  #login {
-    min-height: 100vh;
-    display: grid;
-    place-items: center;
-    padding: 24px;
-  }
-  #login .card { width: 100%; max-width: 380px; }
-
-  /* Shell */
-  #shell { display: none; min-height: 100vh; grid-template-columns: 240px 1fr; }
-  #shell.on { display: grid; }
-  aside {
-    background: var(--primary);
-    color: #fff;
-    padding: 20px 0;
-    display: flex;
-    flex-direction: column;
-  }
-  aside h1 { font-size: 18px; margin: 0 20px 20px; }
-  aside nav { flex: 1; }
-  aside a {
-    display: block;
-    padding: 12px 20px;
-    color: rgba(255,255,255,.85);
-    text-decoration: none;
-    font-size: 14px;
-    border-right: 3px solid transparent;
-  }
-  aside a:hover { background: var(--primary-light); }
-  aside a.active { background: var(--primary-light); color: #fff; border-right-color: var(--accent); }
-  #whoami { padding: 12px 20px; font-size: 12px; color: rgba(255,255,255,.6); }
-  main { padding: 24px; overflow-x: auto; }
-
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 20px;
-    margin-bottom: 16px;
-  }
-  h2 { margin: 0 0 16px; font-size: 22px; }
-  h3 { margin: 0 0 12px; font-size: 16px; }
-
-  .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
-  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
-  .kpi .n { font-size: 28px; font-weight: 700; color: var(--primary); }
-  .kpi .l { font-size: 13px; color: var(--muted); margin-top: 4px; }
-
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th, td { text-align: right; padding: 10px; border-bottom: 1px solid var(--border); }
-  th { color: var(--muted); font-size: 12px; font-weight: 600; }
-  td.actions { display: flex; gap: 6px; flex-wrap: wrap; }
-
-  .badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
-  .b-ok   { background: rgba(46,204,113,.15); color: #1e8449; }
-  .b-warn { background: rgba(243,156,18,.15); color: #b9770e; }
-  .b-err  { background: rgba(231,76,60,.15); color: #a93226; }
-  .b-mute { background: rgba(107,114,128,.15); color: var(--muted); }
-
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .empty { color: var(--muted); padding: 24px; text-align: center; }
-  .note {
-    background: rgba(243,156,18,.1);
-    border: 1px solid var(--warning);
-    border-radius: 12px;
-    padding: 16px;
-    font-size: 14px;
-    line-height: 1.7;
-  }
-  #toast {
-    position: fixed; bottom: 24px; inset-inline-start: 24px;
-    background: var(--text); color: #fff;
-    padding: 12px 20px; border-radius: 10px; font-size: 14px;
-    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 50;
-    max-width: 520px;
-  }
-  #toast.on { opacity: 1; }
-  #toast.err { background: var(--error); }
-  @media (max-width: 800px) {
-    #shell.on { grid-template-columns: 1fr; }
-    aside { flex-direction: row; overflow-x: auto; padding: 8px; }
-    aside h1, #whoami { display: none; }
-    aside nav { display: flex; }
-    aside a { white-space: nowrap; border-right: none; border-bottom: 3px solid transparent; }
-    aside a.active { border-bottom-color: var(--accent); }
-    .grid2 { grid-template-columns: 1fr; }
-  }
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NetYemen — لوحة الإدارة</title>
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
 
 <div id="login">
-  <div class="card">
-    <h2>NetYemen — لوحة الإدارة</h2>
+  <div class="card login-card">
+    <div class="brand">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+        <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+      <h2>NetYemen Ops</h2>
+      <p>بوابة إدارة المنصة</p>
+    </div>
+    
     <div id="step-phone">
       <label for="phone">رقم الهاتف</label>
-      <input id="phone" type="tel" placeholder="7XXXXXXXX" autocomplete="tel">
-      <p style="font-size:12px;color:var(--muted);margin:6px 0 0">بدون مقدمة الدولة — تُضاف ‎+967 تلقائياً</p>
-      <button class="btn-primary" id="send-otp" style="width:100%;margin-top:16px">إرسال رمز التحقق</button>
+      <div class="input-group">
+        <span class="input-prefix">+967</span>
+        <input id="phone" type="tel" placeholder="7XXXXXXXX" autocomplete="tel">
+      </div>
+      <button class="btn btn-primary w-full mt-4" id="send-otp">إرسال رمز التحقق</button>
     </div>
     <div id="step-otp" style="display:none">
       <label for="otp">رمز التحقق</label>
-      <input id="otp" type="text" inputmode="numeric" maxlength="6" placeholder="------">
-      <button class="btn-primary" id="verify-otp" style="width:100%;margin-top:16px">دخول</button>
-      <button class="btn-ghost" id="back-phone" style="width:100%;margin-top:8px">رجوع</button>
+      <input id="otp" type="text" inputmode="numeric" maxlength="6" placeholder="------" class="text-center tracking-widest text-lg">
+      <button class="btn btn-primary w-full mt-4" id="verify-otp">دخول</button>
+      <button class="btn btn-ghost w-full mt-2" id="back-phone">رجوع</button>
     </div>
   </div>
 </div>
 
 <div id="shell">
-  <aside>
-    <h1>NetYemen</h1>
-    <nav>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+        <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+      <h1>NetYemen</h1>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group">عام</div>
       <a href="#dashboard" data-view="dashboard">لوحة القيادة</a>
       <a href="#networks" data-view="networks">الشبكات</a>
+      <a href="#ssid" data-view="ssid">توثيق المعرفات (SSID)</a>
       <a href="#packages" data-view="packages">الباقات</a>
+      <a href="#users" data-view="users">المستخدمون والأدوار</a>
+      
+      <div class="nav-group">المالية</div>
       <a href="#destinations" data-view="destinations">وجهات الدفع</a>
       <a href="#deposits" data-view="deposits">طلبات الشحن</a>
-      <a href="#users" data-view="users">المستخدمون</a>
+      <a href="#settlements" data-view="settlements">تصفية المستحقات</a>
+      <a href="#commission" data-view="commission">إعدادات العمولة</a>
+      
+      <div class="nav-group">العمليات</div>
       <a href="#cards" data-view="cards">خزنة الكروت</a>
+      <a href="#notifications" data-view="notifications">الإشعارات</a>
     </nav>
-    <div id="whoami"></div>
-    <div style="padding:0 20px"><button class="btn-ghost" id="logout" style="width:100%;color:#fff;border-color:rgba(255,255,255,.3)">خروج</button></div>
+    <div class="sidebar-footer">
+      <div id="whoami" class="user-info"></div>
+      <button class="btn btn-ghost w-full" id="logout">تسجيل الخروج</button>
+    </div>
   </aside>
-  <main id="view"></main>
+  <main class="main-content">
+    <div class="topbar">
+      <h2 id="page-title">لوحة القيادة</h2>
+      <button class="menu-toggle btn btn-icon" id="menu-toggle">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+    </div>
+    <div id="view" class="view-container"></div>
+  </main>
 </div>
 
-<div id="toast"></div>
+<!-- Custom Modal Overlay -->
+<div id="modal-overlay" class="modal-overlay">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3 id="modal-title">تأكيد</h3>
+      <button class="btn btn-icon btn-close" id="modal-close">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- Non-blocking Toasts -->
+<div id="toast-container" class="toast-container"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script src="./config.js"></script>
-<script>
-(function () {
-  'use strict';
+<script src="./app.js"></script>
 
-  if (!window.NETYEMEN_CONFIG) {
-    document.body.innerHTML =
-      '<div style="padding:40px;font-family:sans-serif">' +
-      '<h2>الإعداد ناقص</h2><p>انسخ <code>config.example.js</code> إلى <code>config.js</code> واملأ عنوان المشروع والمفتاح العام.</p></div>';
-    return;
-  }
-
-  var cfg = window.NETYEMEN_CONFIG;
-  var db = window.supabase.createClient(cfg.url, cfg.anonKey);
-
-  // ---------- أدوات ----------
-
-  var toastEl = document.getElementById('toast');
-  var toastTimer = null;
-  function toast(message, isError) {
-    toastEl.textContent = message;
-    toastEl.className = 'on' + (isError ? ' err' : '');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { toastEl.className = ''; }, 5000);
-  }
-
-  /// يستخرج رسالة مفهومة من أخطاء PostgreSQL المرفوعة داخل الدوال،
-  /// وهي بصيغة "CODE: نص".
-  function errText(e) {
-    var raw = (e && (e.message || e.error_description)) || String(e);
-    var known = {
-      UNAUTHENTICATED: 'انتهت الجلسة، سجّل الدخول من جديد',
-      FORBIDDEN: 'لا تملك صلاحية لهذا الإجراء',
-      NOT_FOUND: 'العنصر غير موجود',
-      INVALID_STATE: 'الحالة الحالية لا تسمح بهذا الإجراء'
-    };
-    for (var key in known) {
-      if (raw.indexOf(key) !== -1) return known[key];
-    }
-    return raw;
-  }
-
-  function esc(v) {
-    return String(v === null || v === undefined ? '' : v)
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  function money(n) {
-    return (Number(n) || 0).toLocaleString('en-US');
-  }
-
-  function when(iso) {
-    if (!iso) return '';
-    var d = new Date(iso);
-    return d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
-  }
-
-  function badge(text, kind) {
-    return '<span class="badge b-' + kind + '">' + esc(text) + '</span>';
-  }
-
-  var STATUS_STYLE = {
-    active: ['نشطة', 'ok'],
-    verified: ['موثّقة', 'ok'],
-    approved: ['مقبول', 'ok'],
-    completed: ['مكتمل', 'ok'],
-    pending: ['قيد الانتظار', 'warn'],
-    pending_approval: ['بانتظار الموافقة', 'warn'],
-    under_review: ['قيد المراجعة', 'warn'],
-    unverified: ['غير موثّقة', 'warn'],
-    draft: ['مسودة', 'mute'],
-    inactive: ['معطّلة', 'mute'],
-    archived: ['مؤرشفة', 'mute'],
-    cancelled: ['ملغى', 'mute'],
-    suspended: ['موقوفة', 'err'],
-    rejected: ['مرفوض', 'err'],
-    failed: ['فشل', 'err'],
-    refunded: ['مسترد', 'warn']
-  };
-
-  function statusBadge(status) {
-    var s = STATUS_STYLE[status] || [status, 'mute'];
-    return badge(s[0], s[1]);
-  }
-
-  function rpc(name, params) {
-    return db.rpc(name, params || {}).then(function (r) {
-      if (r.error) throw r.error;
-      return r.data;
-    });
-  }
-
-  function table(headers, rows) {
-    if (!rows.length) return '<div class="empty">لا توجد بيانات</div>';
-    return '<table><thead><tr>' +
-      headers.map(function (h) { return '<th>' + esc(h) + '</th>'; }).join('') +
-      '</tr></thead><tbody>' + rows.join('') + '</tbody></table>';
-  }
-
-  // ---------- المصادقة ----------
-
-  var loginEl = document.getElementById('login');
-  var shellEl = document.getElementById('shell');
-  var phoneInput = document.getElementById('phone');
-  var otpInput = document.getElementById('otp');
-  var pendingPhone = null;
-
-  document.getElementById('send-otp').onclick = function () {
-    var local = phoneInput.value.trim();
-    if (local.length < 9) return toast('أدخل رقم هاتف صحيح', true);
-    pendingPhone = '+967' + local;
-    this.disabled = true;
-    db.auth.signInWithOtp({ phone: pendingPhone })
-      .then(function (r) {
-        if (r.error) throw r.error;
-        document.getElementById('step-phone').style.display = 'none';
-        document.getElementById('step-otp').style.display = '';
-        otpInput.focus();
-      })
-      .catch(function (e) { toast(errText(e), true); })
-      .finally(function () { document.getElementById('send-otp').disabled = false; });
-  };
-
-  document.getElementById('back-phone').onclick = function () {
-    document.getElementById('step-otp').style.display = 'none';
-    document.getElementById('step-phone').style.display = '';
-  };
-
-  document.getElementById('verify-otp').onclick = function () {
-    var token = otpInput.value.trim();
-    if (token.length !== 6) return toast('أدخل الرمز كاملاً', true);
-    this.disabled = true;
-    db.auth.verifyOtp({ phone: pendingPhone, token: token, type: 'sms' })
-      .then(function (r) {
-        if (r.error) throw r.error;
-        return onSignedIn();
-      })
-      .catch(function (e) { toast(errText(e), true); })
-      .finally(function () { document.getElementById('verify-otp').disabled = false; });
-  };
-
-  document.getElementById('logout').onclick = function () {
-    db.auth.signOut().then(function () { location.reload(); });
-  };
-
-  /// يتحقق من صلاحية المدير قبل إظهار اللوحة.
-  ///
-  /// هذا الفحص للعرض فقط؛ الحماية الحقيقية في قاعدة البيانات — كل دالة
-  /// admin_* تتحقق من الدور بنفسها وترفض غير المخوّل.
-  function onSignedIn() {
-    return rpc('has_platform_role', { p_role: 'platform_admin' }).then(function (isAdmin) {
-      if (!isAdmin) {
-        toast('هذا الحساب لا يملك صلاحية إدارة', true);
-        return db.auth.signOut();
-      }
-      return db.auth.getUser().then(function (r) {
-        document.getElementById('whoami').textContent = (r.data.user && r.data.user.phone) || '';
-        loginEl.style.display = 'none';
-        shellEl.classList.add('on');
-        route();
-      });
-    });
-  }
-
-  // ---------- التوجيه ----------
-
-  var viewEl = document.getElementById('view');
-
-  var views = {};
-
-  function route() {
-    var name = (location.hash || '#dashboard').slice(1);
-    if (!views[name]) name = 'dashboard';
-    Array.prototype.forEach.call(document.querySelectorAll('aside a'), function (a) {
-      a.classList.toggle('active', a.dataset.view === name);
-    });
-    viewEl.innerHTML = '<div class="empty">جارٍ التحميل…</div>';
-    Promise.resolve()
-      .then(function () { return views[name](); })
-      .catch(function (e) {
-        viewEl.innerHTML = '<div class="card"><h2>تعذّر التحميل</h2><p>' + esc(errText(e)) + '</p></div>';
-      });
-  }
-
-  window.addEventListener('hashchange', route);
-
-  // ---------- لوحة القيادة ----------
-
-  var KPI_LABELS = {
-    active_networks: 'شبكات نشطة',
-    pending_requests: 'طلبات معلّقة',
-    approved_requests: 'طلبات مقبولة',
-    rejected_requests: 'طلبات مرفوضة',
-    active_packages: 'باقات نشطة',
-    out_of_stock_packages: 'باقات نفد مخزونها',
-    network_owners: 'ملاك شبكات',
-    network_operators: 'مشغّلون'
-  };
-
-  views.dashboard = function () {
-    return rpc('admin_dashboard_kpis').then(function (kpis) {
-      var cards = Object.keys(KPI_LABELS).map(function (key) {
-        return '<div class="kpi"><div class="n">' + money(kpis[key]) + '</div>' +
-               '<div class="l">' + esc(KPI_LABELS[key]) + '</div></div>';
-      }).join('');
-      viewEl.innerHTML = '<h2>لوحة القيادة</h2><div class="kpis">' + cards + '</div>';
-    });
-  };
-
-  // ---------- الشبكات ----------
-
-  views.networks = function () {
-    return db.from('networks').select('*').order('created_at', { ascending: false })
-      .then(function (r) {
-        if (r.error) throw r.error;
-        var rows = r.data.map(function (n) {
-          var actions = '';
-          if (n.status !== 'active') {
-            actions += '<button class="btn-accent" data-approve="' + esc(n.id) + '">موافقة</button>';
-          }
-          if (n.status === 'active') {
-            actions += '<button class="btn-danger" data-suspend="' + esc(n.id) + '">إيقاف</button>';
-          }
-          return '<tr><td>' + esc(n.commercial_name) + '</td>' +
-            '<td>' + esc([n.governorate, n.city, n.district].filter(Boolean).join(' - ')) + '</td>' +
-            '<td>' + statusBadge(n.status) + '</td>' +
-            '<td>' + statusBadge(n.verification_status) + '</td>' +
-            '<td>' + when(n.created_at) + '</td>' +
-            '<td class="actions">' + actions + '</td></tr>';
-        });
-
-        viewEl.innerHTML =
-          '<h2>الشبكات</h2>' +
-          '<div class="card"><h3>إضافة شبكة</h3>' +
-            '<div class="grid2">' +
-              '<div><label>الاسم التجاري</label><input id="n-name"></div>' +
-              '<div><label>المحافظة</label><input id="n-gov"></div>' +
-              '<div><label>المدينة</label><input id="n-city"></div>' +
-              '<div><label>الحي</label><input id="n-district"></div>' +
-            '</div>' +
-            '<label>الوصف</label><textarea id="n-desc" rows="2"></textarea>' +
-            '<button class="btn-primary" id="n-create" style="margin-top:12px">إنشاء مسودة</button>' +
-            '<p style="font-size:13px;color:var(--muted)">تُنشأ الشبكة كمسودة بانتظار الموافقة، ثم تظهر للعملاء بعد الموافقة والتوثيق.</p>' +
-          '</div>' +
-          '<div class="card">' +
-            table(['الاسم', 'الموقع', 'الحالة', 'التوثيق', 'أُنشئت', ''], rows) +
-          '</div>';
-
-        document.getElementById('n-create').onclick = function () {
-          var name = document.getElementById('n-name').value.trim();
-          if (!name) return toast('أدخل الاسم التجاري', true);
-          this.disabled = true;
-          rpc('create_network_draft', {
-            p_commercial_name: name,
-            p_description: document.getElementById('n-desc').value.trim() || null,
-            p_governorate: document.getElementById('n-gov').value.trim() || null,
-            p_city: document.getElementById('n-city').value.trim() || null,
-            p_district: document.getElementById('n-district').value.trim() || null
-          }).then(function () { toast('تم إنشاء الشبكة'); route(); })
-            .catch(function (e) { toast(errText(e), true); })
-            .finally(function () { document.getElementById('n-create').disabled = false; });
-        };
-
-        bindAction('approve', function (id) {
-          return rpc('admin_approve_network', { p_network_id: id, p_resolution_note: 'موافقة من لوحة الإدارة' });
-        }, 'تمت الموافقة');
-
-        bindAction('suspend', function (id) {
-          var reason = prompt('سبب الإيقاف؟');
-          if (!reason) return null;
-          return rpc('admin_suspend_network', { p_network_id: id, p_reason: reason });
-        }, 'تم إيقاف الشبكة');
-      });
-  };
-
-  /// يربط أزرار الجدول التي تحمل السمة data-<action> بدالة تنفيذ.
-  function bindAction(attr, run, successText) {
-    Array.prototype.forEach.call(viewEl.querySelectorAll('[data-' + attr + ']'), function (btn) {
-      btn.onclick = function () {
-        var promise = run(btn.dataset[attr]);
-        if (!promise) return;
-        btn.disabled = true;
-        promise.then(function () { toast(successText); route(); })
-          .catch(function (e) { toast(errText(e), true); btn.disabled = false; });
-      };
-    });
-  }
-
-  // ---------- الباقات ----------
-
-  views.packages = function () {
-    return Promise.all([
-      db.from('networks').select('id, commercial_name').order('commercial_name'),
-      db.from('network_packages').select('*, networks(commercial_name)').order('created_at', { ascending: false })
-    ]).then(function (res) {
-      if (res[0].error) throw res[0].error;
-      if (res[1].error) throw res[1].error;
-      var networks = res[0].data;
-      var packages = res[1].data;
-
-      var options = networks.map(function (n) {
-        return '<option value="' + esc(n.id) + '">' + esc(n.commercial_name) + '</option>';
-      }).join('');
-
-      var rows = packages.map(function (p) {
-        var actions = '';
-        if (p.status === 'draft' || p.status === 'inactive') {
-          actions += '<button class="btn-accent" data-publish="' + esc(p.id) + '">نشر</button>';
-        }
-        if (p.status === 'active') {
-          actions += '<button class="btn-ghost" data-deactivate="' + esc(p.id) + '">تعطيل</button>';
-        }
-        return '<tr><td>' + esc(p.name) + '</td>' +
-          '<td>' + esc(p.networks ? p.networks.commercial_name : '') + '</td>' +
-          '<td>' + money(p.price) + ' ' + esc(p.currency) + '</td>' +
-          '<td>' + esc(p.duration_value ? p.duration_value + ' ' + p.duration_unit : '') + '</td>' +
-          '<td>' + statusBadge(p.status) + '</td>' +
-          '<td>' + (p.is_public ? badge('معروضة', 'ok') : badge('مخفية', 'mute')) + '</td>' +
-          '<td class="actions">' + actions + '</td></tr>';
-      });
-
-      viewEl.innerHTML =
-        '<h2>الباقات</h2>' +
-        (networks.length ? '' : '<div class="note">أضف شبكة أولاً — الباقة تتبع شبكة.</div>') +
-        '<div class="card"><h3>إضافة باقة</h3>' +
-          '<div class="grid2">' +
-            '<div><label>الشبكة</label><select id="p-network">' + options + '</select></div>' +
-            '<div><label>الاسم</label><input id="p-name" placeholder="باقة شهرية"></div>' +
-            '<div><label>السعر (ر.ي)</label><input id="p-price" type="number" min="1"></div>' +
-            '<div><label>النوع</label><select id="p-type"><option value="time">زمنية</option><option value="data">بيانات</option><option value="hybrid">مختلطة</option></select></div>' +
-            '<div><label>مدة الصلاحية</label><input id="p-dur" type="number" min="1"></div>' +
-            '<div><label>وحدة المدة</label><select id="p-unit"><option value="day">يوم</option><option value="hour">ساعة</option><option value="week">أسبوع</option><option value="month">شهر</option></select></div>' +
-            '<div><label>السرعة (ميجابت/ث)</label><input id="p-speed" type="number" min="1"></div>' +
-          '</div>' +
-          '<label>الوصف</label><textarea id="p-desc" rows="2"></textarea>' +
-          '<button class="btn-primary" id="p-create" style="margin-top:12px"' + (networks.length ? '' : ' disabled') + '>إنشاء</button>' +
-        '</div>' +
-        '<div class="card">' +
-          table(['الباقة', 'الشبكة', 'السعر', 'المدة', 'الحالة', 'العرض', ''], rows) +
-        '</div>';
-
-      document.getElementById('p-create').onclick = function () {
-        var name = document.getElementById('p-name').value.trim();
-        var price = parseInt(document.getElementById('p-price').value, 10);
-        if (!name) return toast('أدخل اسم الباقة', true);
-        if (!price || price < 1) return toast('أدخل سعراً صحيحاً', true);
-        this.disabled = true;
-        var dur = parseInt(document.getElementById('p-dur').value, 10);
-        var speed = parseInt(document.getElementById('p-speed').value, 10);
-        rpc('create_network_package', {
-          p_network_id: document.getElementById('p-network').value,
-          p_name: name,
-          p_description: document.getElementById('p-desc').value.trim() || null,
-          p_price: price,
-          p_currency: 'YER',
-          p_duration_value: isNaN(dur) ? null : dur,
-          p_duration_unit: isNaN(dur) ? null : document.getElementById('p-unit').value,
-          p_speed_mbps: isNaN(speed) ? null : speed,
-          p_package_type: document.getElementById('p-type').value
-        }).then(function () { toast('تم إنشاء الباقة'); route(); })
-          .catch(function (e) { toast(errText(e), true); })
-          .finally(function () { document.getElementById('p-create').disabled = false; });
-      };
-
-      bindAction('publish', function (id) {
-        return rpc('publish_network_package', { p_package_id: id });
-      }, 'تم نشر الباقة');
-
-      bindAction('deactivate', function (id) {
-        return rpc('deactivate_network_package', { p_package_id: id });
-      }, 'تم تعطيل الباقة');
-    });
-  };
-
-  // ---------- وجهات الدفع ----------
-
-  views.destinations = function () {
-    return rpc('admin_get_payment_destinations').then(function (list) {
-      var rows = (list || []).map(function (d) {
-        var toggle = d.is_active
-          ? '<button class="btn-ghost" data-deact="' + esc(d.id) + '">تعطيل</button>'
-          : '<button class="btn-accent" data-act="' + esc(d.id) + '">تفعيل</button>';
-        return '<tr><td>' + esc(d.display_name) + '</td>' +
-          '<td>' + esc(d.provider_type) + '</td>' +
-          '<td>' + esc(d.account_holder_name) + '</td>' +
-          '<td>' + esc(d.account_identifier) + '</td>' +
-          '<td>' + (d.is_active ? badge('مفعّلة', 'ok') : badge('معطّلة', 'mute')) + '</td>' +
-          '<td class="actions">' + toggle + '</td></tr>';
-      });
-
-      viewEl.innerHTML =
-        '<h2>وجهات الدفع</h2>' +
-        '<div class="note">هذه الوجهات هي ما يراه العميل في شاشة شحن المحفظة. بدونها لا يستطيع أحد الشحن.</div>' +
-        '<div class="card" style="margin-top:16px"><h3>إضافة وجهة</h3>' +
-          '<div class="grid2">' +
-            '<div><label>النوع</label><select id="d-type">' +
-              '<option value="bank_account">حساب بنكي</option>' +
-              '<option value="mobile_wallet">محفظة إلكترونية</option>' +
-              '<option value="exchange">صرافة</option></select></div>' +
-            '<div><label>الاسم المعروض</label><input id="d-name" placeholder="بنك الكريمي"></div>' +
-            '<div><label>اسم صاحب الحساب</label><input id="d-holder"></div>' +
-            '<div><label>رقم الحساب</label><input id="d-acct"></div>' +
-          '</div>' +
-          '<label>تعليمات للعميل</label><textarea id="d-inst" rows="2"></textarea>' +
-          '<button class="btn-primary" id="d-create" style="margin-top:12px">إضافة</button>' +
-        '</div>' +
-        '<div class="card">' +
-          table(['الاسم', 'النوع', 'صاحب الحساب', 'رقم الحساب', 'الحالة', ''], rows) +
-        '</div>';
-
-      document.getElementById('d-create').onclick = function () {
-        var name = document.getElementById('d-name').value.trim();
-        if (!name) return toast('أدخل الاسم المعروض', true);
-        this.disabled = true;
-        rpc('admin_create_payment_destination', {
-          p_provider_type: document.getElementById('d-type').value,
-          p_display_name: name,
-          p_account_holder_name: document.getElementById('d-holder').value.trim() || null,
-          p_account_identifier: document.getElementById('d-acct').value.trim() || null,
-          p_instructions: document.getElementById('d-inst').value.trim() || null,
-          p_currency: 'YER'
-        }).then(function () { toast('تمت الإضافة'); route(); })
-          .catch(function (e) { toast(errText(e), true); })
-          .finally(function () { document.getElementById('d-create').disabled = false; });
-      };
-
-      bindAction('act', function (id) {
-        return rpc('admin_set_payment_destination_active', { p_id: id, p_active: true });
-      }, 'تم التفعيل');
-
-      bindAction('deact', function (id) {
-        return rpc('admin_set_payment_destination_active', { p_id: id, p_active: false });
-      }, 'تم التعطيل');
-    });
-  };
-
-  // ---------- طلبات الشحن ----------
-
-  views.deposits = function () {
-    var status = sessionStorage.getItem('depositFilter') || 'pending';
-    return rpc('get_finance_deposit_queue', { p_status: status }).then(function (list) {
-      var rows = (list || []).map(function (d) {
-        var actions = '';
-        if (d.status === 'pending' || d.status === 'under_review') {
-          actions =
-            '<button class="btn-accent" data-approve-dep="' + esc(d.id) + '">قبول</button>' +
-            '<button class="btn-danger" data-reject-dep="' + esc(d.id) + '">رفض</button>';
-        }
-        return '<tr><td>' + money(d.amount) + ' ر.ي</td>' +
-          '<td>' + esc(d.reference_number) + '</td>' +
-          '<td>' + statusBadge(d.status) + '</td>' +
-          '<td>' + when(d.created_at) + '</td>' +
-          '<td class="actions">' + actions + '</td></tr>';
-      });
-
-      var filters = ['pending', 'under_review', 'approved', 'rejected', 'cancelled']
-        .map(function (s) {
-          var label = (STATUS_STYLE[s] || [s])[0];
-          return '<button class="' + (s === status ? 'btn-primary' : 'btn-ghost') +
-                 '" data-filter="' + s + '">' + esc(label) + '</button>';
-        }).join('');
-
-      viewEl.innerHTML =
-        '<h2>طلبات الشحن</h2>' +
-        '<div class="card"><div class="row">' + filters + '</div></div>' +
-        '<div class="card">' +
-          table(['المبلغ', 'رقم الحوالة', 'الحالة', 'التاريخ', ''], rows) +
-        '</div>';
-
-      Array.prototype.forEach.call(viewEl.querySelectorAll('[data-filter]'), function (btn) {
-        btn.onclick = function () {
-          sessionStorage.setItem('depositFilter', btn.dataset.filter);
-          route();
-        };
-      });
-
-      bindAction('approve-dep', function (id) {
-        if (!confirm('قبول هذا الطلب سيضيف المبلغ إلى محفظة العميل فوراً. متأكد؟')) return null;
-        return rpc('review_wallet_deposit_request', { p_deposit_id: id, p_action: 'approve', p_rejection_reason: null });
-      }, 'تم قبول الطلب وإضافة الرصيد');
-
-      bindAction('reject-dep', function (id) {
-        var reason = prompt('سبب الرفض؟');
-        if (!reason) return null;
-        return rpc('review_wallet_deposit_request', { p_deposit_id: id, p_action: 'reject', p_rejection_reason: reason });
-      }, 'تم رفض الطلب');
-    });
-  };
-
-  // ---------- المستخدمون ----------
-
-  var ROLE_LABELS = {
-    customer: 'عميل',
-    network_owner: 'مالك شبكة',
-    network_operator: 'مشغّل',
-    platform_admin: 'مدير المنصة',
-    finance_officer: 'موظف مالية',
-    support_agent: 'دعم فني'
-  };
-
-  views.users = function () {
-    return Promise.all([
-      db.from('profiles').select('*').order('created_at', { ascending: false }),
-      db.from('user_roles').select('user_id, role')
-    ]).then(function (res) {
-      if (res[0].error) throw res[0].error;
-      if (res[1].error) throw res[1].error;
-
-      var rolesByUser = {};
-      res[1].data.forEach(function (r) {
-        (rolesByUser[r.user_id] = rolesByUser[r.user_id] || []).push(r.role);
-      });
-
-      var rows = res[0].data.map(function (p) {
-        var roles = (rolesByUser[p.id] || []).map(function (r) {
-          return badge(ROLE_LABELS[r] || r, r === 'platform_admin' ? 'ok' : 'mute');
-        }).join(' ');
-        var toggle = p.account_status === 'active'
-          ? '<button class="btn-danger" data-suspend-user="' + esc(p.id) + '">إيقاف</button>'
-          : '<button class="btn-accent" data-activate-user="' + esc(p.id) + '">تفعيل</button>';
-        return '<tr><td>' + esc(p.full_name || '—') + '</td>' +
-          '<td style="font-size:12px;color:var(--muted)">' + esc(p.id) + '</td>' +
-          '<td>' + roles + '</td>' +
-          '<td>' + statusBadge(p.account_status) + '</td>' +
-          '<td>' + when(p.created_at) + '</td>' +
-          '<td class="actions">' + toggle +
-            '<button class="btn-ghost" data-role-user="' + esc(p.id) + '">الأدوار</button></td></tr>';
-      });
-
-      viewEl.innerHTML =
-        '<h2>المستخدمون</h2><div class="card">' +
-        table(['الاسم', 'المعرّف', 'الأدوار', 'الحالة', 'انضم', ''], rows) +
-        '</div>';
-
-      bindAction('suspend-user', function (id) {
-        var reason = prompt('سبب الإيقاف؟');
-        if (!reason) return null;
-        return rpc('admin_set_user_account_status', { p_user_id: id, p_status: 'suspended', p_reason: reason });
-      }, 'تم إيقاف الحساب');
-
-      bindAction('activate-user', function (id) {
-        return rpc('admin_set_user_account_status', { p_user_id: id, p_status: 'active', p_reason: 'إعادة تفعيل' });
-      }, 'تم تفعيل الحساب');
-
-      bindAction('role-user', function (id) {
-        var role = prompt('الدور (network_owner / platform_admin / finance_officer / support_agent):');
-        if (!role) return null;
-        var enable = confirm('موافق = منح الدور، إلغاء = سحبه');
-        return rpc('admin_set_user_platform_role', { p_user_id: id, p_role: role.trim(), p_enabled: enable });
-      }, 'تم تحديث الأدوار');
-    });
-  };
-
-  // ---------- خزنة الكروت ----------
-
-  views.cards = function () {
-    return Promise.all([
-      db.from('networks').select('id, commercial_name').order('commercial_name'),
-      db.from('network_packages').select('id, network_id, name').order('name')
-    ]).then(function (res) {
-        if (res[0].error) throw res[0].error;
-        if (res[1].error) throw res[1].error;
-        var networks = res[0].data;
-        var packages = res[1].data;
-
-        var options = networks.map(function (n) {
-          return '<option value="' + esc(n.id) + '">' + esc(n.commercial_name) + '</option>';
-        }).join('');
-
-        viewEl.innerHTML =
-          '<h2>خزنة الكروت</h2>' +
-          '<div class="card"><h3>رفع دفعة كروت</h3>' +
-            '<div class="grid2">' +
-              '<div><label>الشبكة</label><select id="c-up-network">' + options + '</select></div>' +
-              '<div><label>الباقة</label><select id="c-up-package"></select></div>' +
-            '</div>' +
-            '<label>تاريخ الانتهاء (اختياري)</label><input type="date" id="c-up-expires">' +
-            '<label>أرقام الكروت (PINs) — رقم في كل سطر</label><textarea id="c-up-pins" rows="5"></textarea>' +
-            '<button class="btn-primary" id="c-upload" style="margin-top:12px">رفع الكروت</button>' +
-          '</div>' +
-          '<div class="card" style="margin-top:16px"><h3>الكروت الحالية</h3>' +
-            '<label>الشبكة</label><select id="c-network">' + options + '</select>' +
-            '<button class="btn-ghost" id="c-load" style="margin-top:12px">عرض البيانات الوصفية</button>' +
-            '<div id="c-result" style="margin-top:16px"></div>' +
-          '</div>';
-
-        var packagesByNetwork = {};
-        packages.forEach(function(p) {
-          if (!packagesByNetwork[p.network_id]) packagesByNetwork[p.network_id] = [];
-          packagesByNetwork[p.network_id].push(p);
-        });
-
-        var netSelect = document.getElementById('c-up-network');
-        var pkgSelect = document.getElementById('c-up-package');
-        
-        function filterPackages() {
-          var nid = netSelect.value;
-          pkgSelect.innerHTML = '';
-          var pkgs = packagesByNetwork[nid] || [];
-          pkgs.forEach(function(p) {
-            var opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.name;
-            pkgSelect.appendChild(opt);
-          });
-        }
-        if (netSelect) {
-          netSelect.onchange = filterPackages;
-          filterPackages();
-        }
-
-        document.getElementById('c-upload').onclick = function () {
-          var nid = netSelect.value;
-          var pid = pkgSelect.value;
-          var pinsText = document.getElementById('c-up-pins').value;
-          var expires = document.getElementById('c-up-expires').value;
-          
-          if (!nid || !pid) return toast('اختر الشبكة والباقة', true);
-          
-          var pins = pinsText.split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
-          if (!pins.length) return toast('أدخل كرت واحد على الأقل', true);
-          
-          var p_cards = pins.map(function(pin) {
-            return { pin: pin, expires_at: expires || null };
-          });
-
-          var btn = this;
-          btn.disabled = true;
-          rpc('admin_ingest_card_vault_batch', {
-            p_network_id: nid,
-            p_package_id: pid,
-            p_cards: p_cards
-          }).then(function (r) { 
-            toast('تم رفع ' + r.ingested_count + ' كرت بنجاح (رقم الدفعة: ' + r.batch_id + ')');
-            document.getElementById('c-up-pins').value = '';
-            if (document.getElementById('c-network').value === nid) {
-              document.getElementById('c-load').click();
-            }
-          }).catch(function (e) { toast(errText(e), true); })
-            .finally(function () { btn.disabled = false; });
-        };
-
-        document.getElementById('c-load').onclick = function () {
-          var networkId = document.getElementById('c-network').value;
-          if (!networkId) return toast('لا توجد شبكات بعد', true);
-          this.disabled = true;
-          rpc('admin_list_card_vault_metadata', { p_network_id: networkId, p_state: null })
-            .then(function (list) {
-              var rows = (list || []).map(function (c) {
-                return '<tr><td>' + esc(c.batch_id) + '</td>' +
-                  '<td>' + esc(c.state) + '</td>' +
-                  '<td>' + when(c.created_at) + '</td>' +
-                  '<td>' + when(c.expires_at) + '</td></tr>';
-              });
-              document.getElementById('c-result').innerHTML =
-                table(['الدفعة', 'الحالة', 'أُضيف', 'ينتهي'], rows);
-            })
-            .catch(function (e) { toast(errText(e), true); })
-            .finally(function () { document.getElementById('c-load').disabled = false; });
-        };
-      });
-  };
-
-  // ---------- الإقلاع ----------
-
-  db.auth.getSession().then(function (r) {
-    if (r.data.session) return onSignedIn();
-  }).catch(function () { /* شاشة الدخول ظاهرة أصلاً */ });
-})();
-</script>
 </body>
 </html>

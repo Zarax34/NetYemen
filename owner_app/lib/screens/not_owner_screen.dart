@@ -54,7 +54,9 @@ class _NotOwnerScreenState extends ConsumerState<NotOwnerScreen> {
               ),
               const SizedBox(height: 12),
               const Text(
-                'هذا التطبيق مخصّص لأصحاب الشبكات المسجَّلين فقط. '
+                'حسابات أصحاب الشبكات يُفعّلها فريق NetYemen حالياً، وليست '
+                'متاحة للتسجيل الذاتي داخل التطبيق. تواصل مع فريق NetYemen '
+                'ليتم تفعيل حسابك كصاحب شبكة.\n\n'
                 'إن كنت تريد شراء كروت إنترنت فاستخدم تطبيق NetYemen للعملاء.',
                 style: TextStyle(color: AppTheme.textSecondary),
                 textAlign: TextAlign.center,

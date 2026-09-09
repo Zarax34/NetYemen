@@ -289,7 +289,41 @@
         if (n.status === 'active') actions += '<button class="btn btn-sm btn-danger" data-suspend="' + esc(n.id) + '">إيقاف</button>';
         return '<tr><td>' + esc(n.commercial_name) + '</td><td>' + esc([n.governorate, n.city, n.district].filter(Boolean).join(' - ')) + '</td><td>' + statusBadge(n.status) + '</td><td>' + statusBadge(n.verification_status) + '</td><td>' + when(n.created_at) + '</td><td class="actions">' + actions + '</td></tr>';
       });
-      viewEl.innerHTML = '<div class="card">' + table(['الاسم', 'الموقع', 'الحالة', 'التوثيق', 'أُنشئت', 'إجراء'], rows) + '</div>';
+      viewEl.innerHTML = '<div class="card">' +
+        '<div class="flex gap-4 mb-4" style="justify-content:space-between; align-items:center;">' +
+        '<h3 style="margin:0">الشبكات</h3><button class="btn btn-primary" id="n-add">إنشاء شبكة جديدة</button></div>' +
+        table(['الاسم', 'الموقع', 'الحالة', 'التوثيق', 'أُنشئت', 'إجراء'], rows) + '</div>';
+
+      var btnAdd = document.getElementById('n-add');
+      if (btnAdd) {
+        btnAdd.onclick = function() {
+          var div = document.createElement('div');
+          div.innerHTML = '<div class="grid grid-1 mb-4" style="gap:10px">' +
+            '<div><label>الاسم التجاري <span class="text-error">*</span></label><input id="cn-name"></div>' +
+            '<div><label>الوصف</label><input id="cn-desc"></div>' +
+            '<div><label>المحافظة</label><input id="cn-gov"></div>' +
+            '<div><label>المدينة</label><input id="cn-city"></div>' +
+            '<div><label>الحي</label><input id="cn-dist"></div>' +
+          '</div>';
+          openModal('إنشاء شبكة جديدة', div, '<button class="btn btn-ghost" data-action="cancel">إلغاء</button><button class="btn btn-primary" data-action="ok">حفظ</button>')
+            .then(function(res) {
+              if (res === 'ok') {
+                var name = document.getElementById('cn-name').value.trim();
+                if (!name) { toast('الاسم التجاري مطلوب', true); return; }
+                var params = {
+                  p_commercial_name: name,
+                  p_description: document.getElementById('cn-desc').value.trim() || null,
+                  p_governorate: document.getElementById('cn-gov').value.trim() || null,
+                  p_city: document.getElementById('cn-city').value.trim() || null,
+                  p_district: document.getElementById('cn-dist').value.trim() || null
+                };
+                rpc('create_network_draft', params)
+                  .then(function() { toast('تم إنشاء الشبكة بنجاح'); route(); })
+                  .catch(function(e) { toast(errText(e), true); });
+              }
+            });
+        };
+      }
       
       bindActionAsync('approve', function (id) {
         return asyncConfirm('تأكيد الموافقة على الشبكة وتفعيلها؟').then(function(ok) {

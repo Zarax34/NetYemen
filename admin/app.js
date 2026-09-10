@@ -88,6 +88,17 @@
     });
   }
 
+  var GENERIC_ERROR = 'حدث خطأ غير متوقع، حاول لاحقاً';
+
+  // يحدّد إن كانت الرسالة تقنية (JavaScript / شبكة / SQL) فلا نعرضها للمستخدم
+  function isTechnicalError(raw) {
+    if (!raw) return true;
+    if (/is not a function|undefined|null|cannot read|typeerror|referenceerror|syntaxerror|\.map|stack|network ?error|fetch|json|<[a-z]/i.test(raw)) return true;
+    // رسالة بلا أي أحرف عربية غالباً تقنية (رسائل النظام الموجّهة للمستخدم عربية)
+    if (!/[؀-ۿ]/.test(raw)) return true;
+    return false;
+  }
+
   function errText(e) {
     var raw = (e && (e.message || e.error_description)) || String(e);
     var known = {
@@ -99,7 +110,20 @@
     for (var key in known) {
       if (raw.indexOf(key) !== -1) return known[key];
     }
+    if (isTechnicalError(raw)) return GENERIC_ERROR;
     return raw;
+  }
+
+  // رسالة خطأ ودّية للمستخدم + تسجيل التفاصيل التقنية في الـ console
+  function reportError(e, friendly) {
+    console.error(friendly || 'NetYemen admin error:', e);
+    return friendly || errText(e);
+  }
+
+  // مؤشر تحميل (spinner) دائري
+  function spinnerHtml(label) {
+    return '<div class="loading-wrap"><div class="spinner" role="status" aria-label="جارٍ التحميل"></div>' +
+      (label ? '<p class="loading-label">' + esc(label) + '</p>' : '') + '</div>';
   }
 
   function esc(v) {
@@ -125,6 +149,19 @@
     var s = STATUS_STYLE[status] || [status, 'mute'];
     return badge(s[0], s[1]);
   }
+
+  var PROVIDER_LABELS = {
+    bank_account: 'حساب بنكي',
+    mobile_wallet: 'محفظة إلكترونية',
+    exchange: 'صرافة'
+  };
+  function providerLabel(t) { return PROVIDER_LABELS[t] || t; }
+
+  var GOVERNORATES = [
+    'أمانة العاصمة', 'صنعاء', 'عدن', 'تعز', 'الحديدة', 'إب', 'ذمار', 'حجة', 'صعدة',
+    'عمران', 'لحج', 'أبين', 'شبوة', 'حضرموت', 'المهرة', 'الجوف', 'مأرب', 'البيضاء',
+    'الضالع', 'ريمة', 'المحويت', 'سقطرى'
+  ];
 
   function rpc(name, params) {
     return db.rpc(name, params || {}).then(function (r) {
@@ -163,9 +200,13 @@
 
   function onSignedIn() {
     return rpc('has_platform_role', { p_role: 'platform_admin' }).then(function (isAdmin) {
-      if (!isAdmin) {
+      // نسجّل الخروج فقط عندما يُرجع الخادم false صراحةً (ليس صلاحية إدارة)
+      if (isAdmin === false) {
         toast('هذا الحساب لا يملك صلاحية إدارة', true);
-        return db.auth.signOut();
+        return db.auth.signOut().then(function () {
+          shellEl.classList.remove('on');
+          loginEl.style.display = '';
+        });
       }
       return db.auth.getUser().then(function (r) {
         document.getElementById('whoami').textContent = (r.data.user && (r.data.user.email || r.data.user.phone)) || '';
@@ -174,8 +215,9 @@
         route();
       });
     }).catch(function(e) {
-      toast(errText(e), true);
-      db.auth.signOut();
+      // خطأ عابر (شبكة/انقطاع) — لا نسجّل الخروج حتى لا يبدو المستخدم مطروداً عند كل تحديث
+      console.error('NetYemen admin: has_platform_role check failed (transient), keeping session', e);
+      toast('تعذّر التحقق من الصلاحية، تحقّق من الاتصال وحاول مجدداً', true);
     });
   }
 
@@ -198,12 +240,17 @@
       if (a.dataset.view === name) document.getElementById('page-title').textContent = a.textContent;
     });
     if(sidebar) sidebar.classList.remove('open');
-    viewEl.innerHTML = '<div class="empty">جارٍ التحميل…</div>';
-    
+    viewEl.innerHTML = spinnerHtml('جارٍ التحميل…');
+
     Promise.resolve()
       .then(function () { return views[name](); })
       .catch(function (e) {
-        viewEl.innerHTML = '<div class="card"><h2>تعذّر التحميل</h2><p class="text-error">' + esc(errText(e)) + '</p></div>';
+        console.error('NetYemen admin: view "' + name + '" failed to load', e);
+        viewEl.innerHTML = '<div class="card"><h2>تعذّر التحميل</h2>' +
+          '<p class="text-muted">تعذّر تحميل هذا القسم، حاول لاحقاً.</p>' +
+          '<button class="btn btn-ghost mt-2" id="view-retry">إعادة المحاولة</button></div>';
+        var retry = document.getElementById('view-retry');
+        if (retry) retry.onclick = function () { route(); };
       });
   }
 
@@ -219,7 +266,7 @@
           if (res === false) return; // user cancelled modal
           toast(successText); 
           route(); 
-        }).catch(function (e) { toast(errText(e), true); btn.disabled = false; });
+        }).catch(function (e) { console.error('NetYemen admin action failed:', e); toast(errText(e), true); btn.disabled = false; });
       };
     });
   }
@@ -283,7 +330,9 @@
           div.innerHTML = '<div class="grid grid-1 mb-4" style="gap:10px">' +
             '<div><label>الاسم التجاري <span class="text-error">*</span></label><input id="cn-name"></div>' +
             '<div><label>الوصف</label><input id="cn-desc"></div>' +
-            '<div><label>المحافظة</label><input id="cn-gov"></div>' +
+            '<div><label>المحافظة</label><select id="cn-gov"><option value="">اختر المحافظة</option>' +
+              GOVERNORATES.map(function (g) { return '<option value="' + esc(g) + '">' + esc(g) + '</option>'; }).join('') +
+            '</select></div>' +
             '<div><label>المدينة</label><input id="cn-city"></div>' +
             '<div><label>الحي</label><input id="cn-dist"></div>' +
           '</div>';
@@ -368,19 +417,21 @@
         return '<tr><td>' + esc(p.name) + '</td><td>' + esc(p.networks ? p.networks.commercial_name : '') + '</td><td>' + money(p.price) + ' ' + esc(p.currency) + '</td><td>' + esc(p.duration_value ? p.duration_value + ' ' + p.duration_unit : '') + '</td><td>' + statusBadge(p.status) + '</td><td>' + (p.is_public ? badge('معروضة', 'ok') : badge('مخفية', 'mute')) + '</td><td class="actions">' + actions + '</td></tr>';
       });
 
-      viewEl.innerHTML = (networks.length ? '' : '<div class="note">أضف شبكة أولاً — الباقة تتبع شبكة.</div>') +
+      var noNet = !networks.length;
+      var dis = noNet ? ' disabled' : '';
+      viewEl.innerHTML = (noNet ? '<div class="note">أضف شبكة أولاً — الباقة تتبع شبكة. لن تتمكن من إضافة باقة قبل إنشاء شبكة واحدة على الأقل.</div>' : '') +
         '<div class="card"><div class="card-header"><h3>إضافة باقة</h3></div>' +
           '<div class="grid grid-3 mb-4">' +
-            '<div><label>الشبكة</label><select id="p-network">' + options + '</select></div>' +
-            '<div><label>الاسم</label><input id="p-name" placeholder="باقة شهرية"></div>' +
-            '<div><label>السعر (ر.ي)</label><input id="p-price" type="number" min="1"></div>' +
-            '<div><label>النوع</label><select id="p-type"><option value="time">زمنية</option><option value="data">بيانات</option><option value="hybrid">مختلطة</option></select></div>' +
-            '<div><label>مدة الصلاحية</label><input id="p-dur" type="number" min="1"></div>' +
-            '<div><label>وحدة المدة</label><select id="p-unit"><option value="day">يوم</option><option value="hour">ساعة</option><option value="week">أسبوع</option><option value="month">شهر</option></select></div>' +
-            '<div><label>السرعة (ميجابت/ث)</label><input id="p-speed" type="number" min="1"></div>' +
+            '<div><label>الشبكة</label><select id="p-network"' + dis + '>' + options + '</select></div>' +
+            '<div><label>الاسم</label><input id="p-name" placeholder="باقة شهرية"' + dis + '></div>' +
+            '<div><label>السعر (ر.ي)</label><input id="p-price" type="number" min="1" dir="ltr"' + dis + '></div>' +
+            '<div><label>النوع</label><select id="p-type"' + dis + '><option value="time">زمنية</option><option value="data">بيانات</option><option value="hybrid">مختلطة</option></select></div>' +
+            '<div><label>مدة الصلاحية</label><input id="p-dur" type="number" min="1" dir="ltr"' + dis + '></div>' +
+            '<div><label>وحدة المدة</label><select id="p-unit"' + dis + '><option value="day">يوم</option><option value="hour">ساعة</option><option value="week">أسبوع</option><option value="month">شهر</option></select></div>' +
+            '<div><label>السرعة (ميجابت/ث)</label><input id="p-speed" type="number" min="1" dir="ltr"' + dis + '></div>' +
           '</div>' +
-          '<label>الوصف</label><textarea id="p-desc" rows="2" class="mb-4"></textarea>' +
-          '<button class="btn btn-primary" id="p-create"' + (networks.length ? '' : ' disabled') + '>إنشاء</button>' +
+          '<label>الوصف</label><textarea id="p-desc" rows="2" class="mb-4"' + dis + '></textarea>' +
+          '<button class="btn btn-primary" id="p-create"' + dis + '>إنشاء</button>' +
         '</div>' +
         '<div class="card"><div class="card-header"><h3>الباقات الحالية</h3></div>' + table(['الباقة', 'الشبكة', 'السعر', 'المدة', 'الحالة', 'العرض', ''], rows) + '</div>';
 
@@ -426,7 +477,11 @@
         var toggle = p.account_status === 'active'
           ? '<button class="btn btn-sm btn-danger" data-suspend-user="' + esc(p.id) + '">إيقاف</button>'
           : '<button class="btn btn-sm btn-accent" data-activate-user="' + esc(p.id) + '">تفعيل</button>';
-        return '<tr><td>' + esc(p.full_name || '—') + '</td><td class="text-sm text-muted" dir="ltr">' + esc(p.id) + '</td><td>' + roles + '</td><td>' + statusBadge(p.account_status) + '</td><td>' + when(p.created_at) + '</td><td class="actions">' + toggle + '<button class="btn btn-sm btn-ghost" data-role-user="' + esc(p.id) + '">الأدوار</button></td></tr>';
+        var shortId = String(p.id || '').slice(0, 8);
+        var idCell = '<span class="text-sm text-muted" dir="ltr">' + esc(shortId) + '…</span>' +
+          '<button class="btn btn-icon btn-sm" data-copy-id="' + esc(p.id) + '" title="نسخ المعرّف" aria-label="نسخ المعرّف">⧉</button>';
+        var searchText = [p.full_name, p.phone, p.email, p.id].filter(Boolean).join(' ').toLowerCase();
+        return '<tr data-search="' + esc(searchText) + '"><td>' + esc(p.full_name || '—') + '</td><td class="id-cell">' + idCell + '</td><td>' + roles + '</td><td>' + statusBadge(p.account_status) + '</td><td>' + when(p.created_at) + '</td><td class="actions">' + toggle + '<button class="btn btn-sm btn-ghost" data-role-user="' + esc(p.id) + '">الأدوار</button></td></tr>';
       });
 
       var GRANTABLE = [
@@ -454,7 +509,37 @@
           '<button class="btn btn-primary" id="inv-submit">إرسال الدعوة</button>' +
           (grantRows.length ? '<div class="mt-4">' + table(['البريد', 'الأدوار', 'الحالة', 'أُنشئت', 'إجراء'], grantRows) + '</div>' : '') +
         '</div>' +
-        '<div class="card">' + table(['الاسم', 'المعرّف', 'الأدوار', 'الحالة', 'انضم', 'إجراء'], rows) + '</div>';
+        '<div class="card"><div class="card-header"><h3>المستخدمون</h3></div>' +
+          '<div class="mb-4"><input type="search" id="user-search" placeholder="ابحث بالاسم أو الهاتف أو البريد…"></div>' +
+          '<div id="users-table">' + table(['الاسم', 'المعرّف', 'الأدوار', 'الحالة', 'انضم', 'إجراء'], rows) + '</div>' +
+        '</div>';
+
+      // بحث فوري في جدول المستخدمين (اسم/هاتف/بريد)
+      var searchBox = document.getElementById('user-search');
+      if (searchBox) searchBox.oninput = function () {
+        var q = this.value.trim().toLowerCase();
+        Array.prototype.forEach.call(viewEl.querySelectorAll('#users-table tbody tr'), function (tr) {
+          var hay = tr.getAttribute('data-search') || '';
+          tr.style.display = (!q || hay.indexOf(q) !== -1) ? '' : 'none';
+        });
+      };
+
+      // نسخ المعرّف الكامل إلى الحافظة
+      Array.prototype.forEach.call(viewEl.querySelectorAll('[data-copy-id]'), function (btn) {
+        btn.onclick = function () {
+          var id = btn.dataset.copyId;
+          var done = function () { toast('تم نسخ المعرّف'); };
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(id).then(done).catch(function (e) { console.error('clipboard failed', e); toast('تعذّر النسخ', true); });
+          } else {
+            try {
+              var ta = document.createElement('textarea');
+              ta.value = id; document.body.appendChild(ta); ta.select();
+              document.execCommand('copy'); document.body.removeChild(ta); done();
+            } catch (e) { console.error('clipboard fallback failed', e); toast('تعذّر النسخ', true); }
+          }
+        };
+      });
 
       document.getElementById('inv-submit').onclick = function () {
         var email = document.getElementById('inv-email').value.trim();
@@ -472,8 +557,17 @@
       }, 'أُلغيت الدعوة');
 
       bindActionAsync('suspend-user', function (id) {
-        return asyncPrompt('سبب الإيقاف؟').then(function(reason) {
-          if(!reason) return false;
+        var div = document.createElement('div');
+        div.innerHTML = '<p class="text-error" style="font-weight:600">إجراء حسّاس: سيتم إيقاف حساب هذا المستخدم ومنعه من الدخول.</p>' +
+          '<label for="suspend-reason">سبب الإيقاف <span class="text-error">*</span></label>' +
+          '<textarea id="suspend-reason" rows="3" placeholder="اذكر سبب الإيقاف"></textarea>';
+        return openModal('تأكيد إيقاف الحساب', div,
+          '<button class="btn btn-ghost" data-action="cancel">إلغاء</button>' +
+          '<button class="btn btn-danger" data-action="ok">إيقاف الحساب</button>'
+        ).then(function (res) {
+          if (res !== 'ok') return false;
+          var reason = document.getElementById('suspend-reason').value.trim();
+          if (!reason) { toast('سبب الإيقاف مطلوب', true); return false; }
           return rpc('admin_set_user_account_status', { p_user_id: id, p_status: 'suspended', p_reason: reason });
         });
       }, 'تم إيقاف الحساب');
@@ -504,7 +598,7 @@
         var toggle = d.is_active
           ? '<button class="btn btn-sm btn-ghost" data-deact="' + esc(d.id) + '">تعطيل</button>'
           : '<button class="btn btn-sm btn-accent" data-act="' + esc(d.id) + '">تفعيل</button>';
-        return '<tr><td>' + esc(d.display_name) + '</td><td>' + esc(d.provider_type) + '</td><td>' + esc(d.account_holder_name) + '</td><td dir="ltr" class="text-center">' + esc(d.account_identifier) + '</td><td>' + (d.is_active ? badge('مفعّلة', 'ok') : badge('معطّلة', 'mute')) + '</td><td class="actions">' + toggle + '</td></tr>';
+        return '<tr><td>' + esc(d.display_name) + '</td><td>' + esc(providerLabel(d.provider_type)) + '</td><td>' + esc(d.account_holder_name) + '</td><td dir="ltr" class="text-center">' + esc(d.account_identifier) + '</td><td>' + (d.is_active ? badge('مُفعّلة', 'ok') : badge('معطّلة', 'mute')) + '</td><td class="actions">' + toggle + '</td></tr>';
       });
 
       viewEl.innerHTML = '<div class="note">هذه الوجهات تظهر للعميل في شاشة شحن المحفظة.</div>' +
@@ -609,8 +703,8 @@
 
       viewEl.innerHTML = '<div class="card"><div class="card-header"><h3>إنشاء دفعة تصفية</h3></div>' +
         '<div class="grid grid-3 mb-4">' +
-          '<div><label>من تاريخ</label><input type="date" id="s-start"></div>' +
-          '<div><label>إلى تاريخ</label><input type="date" id="s-end"></div>' +
+          '<div><label>من تاريخ</label><input type="date" id="s-start" dir="ltr"></div>' +
+          '<div><label>إلى تاريخ</label><input type="date" id="s-end" dir="ltr"></div>' +
           '<div><label>الشبكة (اختياري)</label><select id="s-network">' + options + '</select></div>' +
         '</div>' +
         '<button class="btn btn-primary" id="s-create">إنشاء الدفعة</button></div>' +
@@ -650,9 +744,33 @@
 
   // ---------- الإشعارات ----------
   views.notifications = function () {
-    return rpc('get_notification_transport_status').catch(function(){ return []; }).then(function(statusList) {
-      var transportRows = (statusList || []).map(function(s) {
-        return '<tr><td>' + esc(s.transport_type) + '</td><td>' + (s.is_active ? badge('نشط', 'ok') : badge('متوقف', 'err')) + '</td><td>' + esc(s.pending_count) + '</td><td>' + esc(s.failed_count) + '</td></tr>';
+    return rpc('get_notification_transport_status').catch(function(e){ console.error('get_notification_transport_status failed', e); return null; }).then(function(status) {
+      // الدالة قد تُرجع مصفوفة، أو كائن json واحد، أو كائن مفاتيحه هي النواقل — نتعامل مع كل الأشكال دفاعياً
+      function toTransportList(x) {
+        if (x === null || x === undefined) return [];
+        if (Array.isArray(x)) return x.filter(Boolean);
+        if (typeof x === 'object') {
+          // كائن يحمل حقول حالة مباشرة => سجلّ واحد
+          if ('transport_type' in x || 'is_active' in x || 'pending_count' in x || 'failed_count' in x) {
+            return [x];
+          }
+          // كائن {ناقل: حالة} => نحوّله إلى مصفوفة سجلات
+          return Object.keys(x).map(function (k) {
+            var v = x[k];
+            if (v && typeof v === 'object') {
+              if (!('transport_type' in v)) v = Object.assign({ transport_type: k }, v);
+              return v;
+            }
+            return { transport_type: k, is_active: v };
+          });
+        }
+        return [];
+      }
+
+      var transportRows = toTransportList(status).map(function(s) {
+        s = s || {};
+        var active = s.is_active === true || s.is_active === 'true' || s.is_active === 1;
+        return '<tr><td>' + esc(s.transport_type != null ? s.transport_type : '—') + '</td><td>' + (active ? badge('نشط', 'ok') : badge('متوقف', 'err')) + '</td><td>' + esc(s.pending_count != null ? s.pending_count : 0) + '</td><td>' + esc(s.failed_count != null ? s.failed_count : 0) + '</td></tr>';
       });
 
       viewEl.innerHTML = '<div class="card"><div class="card-header"><h3>إرسال إشعار جديد</h3></div>' +
@@ -690,7 +808,7 @@
   views.commission = function () {
     viewEl.innerHTML = '<div class="card"><div class="card-header"><h3>العمولة الافتراضية</h3></div>' +
       '<p class="mb-4 text-muted">تُخصم هذه العمولة من مبيعات الشبكات تلقائياً (كنسبة مئوية).</p>' +
-      '<div style="max-width:300px"><label>نسبة العمولة (%)</label><input type="number" id="c-rate" step="0.1" min="0" max="100" class="mb-4"></div>' +
+      '<div style="max-width:300px"><label>نسبة العمولة (%)</label><input type="number" id="c-rate" step="0.1" min="0" max="100" class="mb-4" dir="ltr"></div>' +
       '<button class="btn btn-primary" id="c-save">تحديث العمولة</button></div>';
       
     var btnSave = document.getElementById('c-save');
@@ -720,7 +838,7 @@
           '<div><label>الشبكة</label><select id="c-up-network">' + options + '</select></div>' +
           '<div><label>الباقة</label><select id="c-up-package"></select></div>' +
         '</div>' +
-        '<label>تاريخ الانتهاء (اختياري)</label><input type="date" id="c-up-expires" class="mb-4">' +
+        '<label>تاريخ الانتهاء (اختياري)</label><input type="date" id="c-up-expires" class="mb-4" dir="ltr">' +
         '<label>أرقام الكروت (PINs) — رقم في كل سطر</label><textarea id="c-up-pins" rows="5" class="mb-4" dir="ltr" style="text-align:left"></textarea>' +
         '<button class="btn btn-primary" id="c-upload">رفع الكروت</button></div>' +
         '<div class="card"><div class="card-header"><h3>الكروت الحالية (البيانات الوصفية)</h3></div>' +

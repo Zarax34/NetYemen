@@ -9,7 +9,14 @@
   }
 
   var cfg = window.NETYEMEN_CONFIG;
-  var db = window.supabase.createClient(cfg.url, cfg.anonKey);
+  var db = window.supabase.createClient(cfg.url, cfg.anonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storageKey: 'netyemen-admin-auth'
+    }
+  });
 
   // ---------- أدوات UI ----------
 
@@ -137,42 +144,17 @@
 
   var loginEl = document.getElementById('login');
   var shellEl = document.getElementById('shell');
-  var phoneInput = document.getElementById('phone');
-  var otpInput = document.getElementById('otp');
-  var pendingPhone = null;
-
-  document.getElementById('send-otp').onclick = function () {
-    var local = phoneInput.value.trim();
-    if (local.length < 9) return toast('أدخل رقم هاتف صحيح', true);
-    pendingPhone = '+967' + local;
+  document.getElementById('google-signin').onclick = function () {
     this.disabled = true;
-    db.auth.signInWithOtp({ phone: pendingPhone })
-      .then(function (r) {
-        if (r.error) throw r.error;
-        document.getElementById('step-phone').style.display = 'none';
-        document.getElementById('step-otp').style.display = '';
-        otpInput.focus();
-      })
-      .catch(function (e) { toast(errText(e), true); })
-      .finally(function () { document.getElementById('send-otp').disabled = false; });
-  };
-
-  document.getElementById('back-phone').onclick = function () {
-    document.getElementById('step-otp').style.display = 'none';
-    document.getElementById('step-phone').style.display = '';
-  };
-
-  document.getElementById('verify-otp').onclick = function () {
-    var token = otpInput.value.trim();
-    if (token.length !== 6) return toast('أدخل الرمز كاملاً', true);
-    this.disabled = true;
-    db.auth.verifyOtp({ phone: pendingPhone, token: token, type: 'sms' })
-      .then(function (r) {
-        if (r.error) throw r.error;
-        return onSignedIn();
-      })
-      .catch(function (e) { toast(errText(e), true); })
-      .finally(function () { document.getElementById('verify-otp').disabled = false; });
+    db.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin }
+    })
+      .then(function (r) { if (r.error) throw r.error; })
+      .catch(function (e) {
+        toast(errText(e), true);
+        document.getElementById('google-signin').disabled = false;
+      });
   };
 
   document.getElementById('logout').onclick = function () {
@@ -186,7 +168,7 @@
         return db.auth.signOut();
       }
       return db.auth.getUser().then(function (r) {
-        document.getElementById('whoami').textContent = (r.data.user && r.data.user.phone) || '';
+        document.getElementById('whoami').textContent = (r.data.user && (r.data.user.email || r.data.user.phone)) || '';
         loginEl.style.display = 'none';
         shellEl.classList.add('on');
         route();
@@ -430,10 +412,12 @@
   views.users = function () {
     return Promise.all([
       db.from('profiles').select('*').order('created_at', { ascending: false }),
-      db.from('user_roles').select('user_id, role')
+      db.from('user_roles').select('user_id, role'),
+      rpc('admin_list_access_grants').catch(function () { return []; })
     ]).then(function (res) {
       if (res[0].error) throw res[0].error;
       if (res[1].error) throw res[1].error;
+      var grants = res[2] || [];
       var rolesByUser = {};
       res[1].data.forEach(function (r) { (rolesByUser[r.user_id] = rolesByUser[r.user_id] || []).push(r.role); });
 
@@ -445,7 +429,47 @@
         return '<tr><td>' + esc(p.full_name || '—') + '</td><td class="text-sm text-muted" dir="ltr">' + esc(p.id) + '</td><td>' + roles + '</td><td>' + statusBadge(p.account_status) + '</td><td>' + when(p.created_at) + '</td><td class="actions">' + toggle + '<button class="btn btn-sm btn-ghost" data-role-user="' + esc(p.id) + '">الأدوار</button></td></tr>';
       });
 
-      viewEl.innerHTML = '<div class="card">' + table(['الاسم', 'المعرّف', 'الأدوار', 'الحالة', 'انضم', 'إجراء'], rows) + '</div>';
+      var GRANTABLE = [
+        ['network_owner', 'مالك شبكة'], ['network_operator', 'مشغّل شبكة'],
+        ['finance_officer', 'موظف مالية'], ['support_agent', 'دعم'], ['platform_admin', 'مدير منصة']
+      ];
+      var roleChecks = GRANTABLE.map(function (g) {
+        return '<label class="chk"><input type="checkbox" class="inv-role" value="' + g[0] + '"> ' + esc(g[1]) + '</label>';
+      }).join(' ');
+      var grantRows = (grants || []).map(function (g) {
+        var st = g.applied_at ? badge('مُفعّلة', 'ok') : badge('بانتظار الدخول', 'warn');
+        var rolesTxt = (g.roles || []).map(function (r) { return ROLE_LABELS[r] || r; }).join('، ');
+        var act = g.applied_at ? '' : '<button class="btn btn-sm btn-danger" data-revoke-grant="' + esc(g.id) + '">إلغاء</button>';
+        return '<tr><td dir="ltr">' + esc(g.email) + '</td><td>' + esc(rolesTxt) + '</td><td>' + st + '</td><td>' + when(g.created_at) + '</td><td class="actions">' + act + '</td></tr>';
+      });
+
+      viewEl.innerHTML =
+        '<div class="card"><div class="card-header"><h3>إضافة مستخدم (دعوة بالبريد)</h3></div>' +
+          '<div class="note">أدخل بريد الشخص واختر دوره. عند تسجيله الدخول عبر Google بنفس البريد يُمنح الدور تلقائياً — وإن كان مسجّلاً بالفعل يُطبّق فوراً.</div>' +
+          '<div class="grid grid-2 mb-4">' +
+            '<div><label>البريد الإلكتروني</label><input id="inv-email" type="email" placeholder="name@gmail.com" dir="ltr"></div>' +
+            '<div><label>ملاحظة (اختياري)</label><input id="inv-note" type="text" placeholder="مثال: مالك شبكة النور"></div>' +
+          '</div>' +
+          '<div class="mb-4"><label>الأدوار</label><div class="flex gap-4 flex-wrap">' + roleChecks + '</div></div>' +
+          '<button class="btn btn-primary" id="inv-submit">إرسال الدعوة</button>' +
+          (grantRows.length ? '<div class="mt-4">' + table(['البريد', 'الأدوار', 'الحالة', 'أُنشئت', 'إجراء'], grantRows) + '</div>' : '') +
+        '</div>' +
+        '<div class="card">' + table(['الاسم', 'المعرّف', 'الأدوار', 'الحالة', 'انضم', 'إجراء'], rows) + '</div>';
+
+      document.getElementById('inv-submit').onclick = function () {
+        var email = document.getElementById('inv-email').value.trim();
+        var note = document.getElementById('inv-note').value.trim();
+        var roles = Array.prototype.map.call(document.querySelectorAll('.inv-role:checked'), function (c) { return c.value; });
+        if (!email) return toast('أدخل البريد الإلكتروني', true);
+        if (!roles.length) return toast('اختر دوراً واحداً على الأقل', true);
+        var btn = this; btn.disabled = true;
+        rpc('admin_create_access_grant', { p_email: email, p_roles: roles, p_note: note || null })
+          .then(function () { toast('تمت إضافة الدعوة'); route(); })
+          .catch(function (e) { toast(errText(e), true); btn.disabled = false; });
+      };
+      bindActionAsync('revoke-grant', function (id) {
+        return rpc('admin_revoke_access_grant', { p_id: id });
+      }, 'أُلغيت الدعوة');
 
       bindActionAsync('suspend-user', function (id) {
         return asyncPrompt('سبب الإيقاف؟').then(function(reason) {

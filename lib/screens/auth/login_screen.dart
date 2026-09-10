@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/app_providers.dart';
 import '../../utils/app_theme.dart';
-import '../../utils/dev_config.dart';
-import 'otp_screen.dart';
 
+/// شاشة تسجيل الدخول عبر Google.
+///
+/// لا تتولّى هذه الشاشة التنقّل بعد نجاح الدخول: بوّابة المصادقة
+/// (SplashScreen) تراقب `onAuthStateChange`، فبمجرد وصول الجلسة عبر الـ
+/// deep link يُستبدَل هذا العرض بـ MainScreen تلقائياً دون إعادة تشغيل.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -14,43 +17,22 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _phoneController = TextEditingController();
   bool _isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // تعبئة الرقم التجريبي في بناء التطوير فقط (مقفل في release).
-    if (DevConfig.isEnabled) {
-      _phoneController.text = DevConfig.testPhone;
-    }
-  }
-
-  Future<void> _sendOTP() async {
-    final phone = _phoneController.text.trim();
-    if (phone.isEmpty || phone.length < 9) {
-      _showError('يرجى إدخال رقم هاتف صحيح');
-      return;
-    }
-
+  Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
 
     try {
       final service = ref.read(supabaseServiceProvider);
-      await service.signInWithPhone('+967$phone');
-
-      if (!mounted) return;
-
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => OTPScreen(phone: '+967$phone'),
-        ),
-      );
+      await service.signInWithGoogle();
+      // بعد فتح المتصفح تكتمل هذه الدالة؛ إتمام الدخول الفعلي يصل عبر
+      // onAuthStateChange وتتكفّل البوّابة بالانتقال إلى الشاشة الرئيسية.
     } catch (e) {
-      _showError('فشل إرسال رمز التحقق: $e');
+      if (mounted) {
+        _showError('تعذّر تسجيل الدخول عبر Google. تأكّد من اتصالك بالإنترنت وحاول مرة أخرى.');
+      }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -70,87 +52,88 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 60),
+              const Spacer(flex: 2),
               const Icon(
                 Icons.wifi_tethering_rounded,
-                size: 80,
+                size: 88,
                 color: AppTheme.primary,
               ),
               const SizedBox(height: 24),
               Text(
-                'تسجيل الدخول',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                'NetYemen',
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
               ),
               const SizedBox(height: 8),
               Text(
-                'أدخل رقم هاتفك لإرسال رمز التحقق',
+                'كروت الإنترنت في جيبك',
+                textAlign: TextAlign.center,
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: AppTheme.textSecondary,
                     ),
               ),
-              const SizedBox(height: 40),
-              TextField(
-                controller: _phoneController,
-                keyboardType: TextInputType.phone,
-                textAlign: TextAlign.center,
-                maxLength: 9,
-                style: const TextStyle(fontSize: 18),
-                decoration: const InputDecoration(
-                  hintText: '77XXXXXXX',
-                  prefixIcon: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    child: Text(
-                      '+967',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: AppTheme.textPrimary,
-                      ),
-                    ),
-                  ),
-                  prefixIconConstraints: BoxConstraints(minWidth: 80),
-                  counterText: '',
-                ),
+              const Spacer(flex: 3),
+              Text(
+                'سجّل الدخول للمتابعة',
+                style: Theme.of(context).textTheme.titleMedium,
               ),
-              if (DevConfig.isEnabled) ...[
-                const SizedBox(height: 12),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppTheme.warning.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.warning),
-                  ),
-                  child: const Text(
-                    'وضع التطوير — رقم تجريبي مُعبأ مسبقاً',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.warning,
-                    ),
-                  ),
-                ),
-              ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               SizedBox(
                 width: double.infinity,
                 height: 54,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _sendOTP,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('إرسال رمز التحقق'),
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _signInWithGoogle,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.surface,
+                    foregroundColor: AppTheme.textPrimary,
+                    side: const BorderSide(color: AppTheme.border),
+                    elevation: 0,
+                  ),
+                  icon: _isLoading
+                      ? const SizedBox.shrink()
+                      : const _GoogleGlyph(),
+                  label: _isLoading
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: AppTheme.primary,
+                          ),
+                        )
+                      : const Text('تسجيل الدخول عبر Google'),
                 ),
               ),
+              const Spacer(flex: 1),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// شعار حرف G بألوان Google — بديل نصي خفيف لا يحتاج أصلاً في الأصول.
+class _GoogleGlyph extends StatelessWidget {
+  const _GoogleGlyph();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 24,
+      height: 24,
+      alignment: Alignment.center,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+      ),
+      child: const Text(
+        'G',
+        style: TextStyle(
+          fontSize: 18,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF4285F4),
         ),
       ),
     );

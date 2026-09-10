@@ -16,6 +16,22 @@ class SupabaseService {
 
   // ==================== AUTH ====================
 
+  /// عنوان العودة (deep link) المسموح به في Supabase لتدفّق OAuth.
+  static const String _oauthRedirect = 'com.netyemen.customer://login-callback';
+
+  /// تسجيل الدخول عبر Google باستخدام تدفّق OAuth عبر الـ deep link.
+  ///
+  /// يفتح متصفح النظام لصفحة موافقة Google، وعند العودة إلى التطبيق عبر
+  /// [_oauthRedirect] يلتقط `supabase_flutter` الجلسة تلقائياً ويطلق
+  /// `onAuthStateChange` بالحدث `signedIn`؛ لا حاجة لتحليل رابط العودة يدوياً.
+  Future<void> signInWithGoogle() async {
+    await _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: _oauthRedirect,
+      authScreenLaunchMode: LaunchMode.externalApplication,
+    );
+  }
+
   Future<void> signInWithPhone(String phone) async {
     await _client.auth.signInWithOtp(phone: phone);
   }

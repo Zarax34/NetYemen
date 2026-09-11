@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/network_model.dart';
 import '../../providers/app_providers.dart';
 import '../../utils/app_theme.dart';
+import '../notifications/notifications_screen.dart';
 import 'network_detail_screen.dart';
 
 class HomeScreen extends ConsumerWidget {
@@ -18,9 +19,23 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('NetYemen'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
+          Consumer(
+            builder: (context, ref, child) {
+              final unreadCount = ref.watch(unreadNotificationCountProvider).valueOrNull ?? 0;
+              return IconButton(
+                icon: Badge(
+                  isLabelVisible: unreadCount > 0,
+                  label: Text('$unreadCount'),
+                  child: const Icon(Icons.notifications_outlined),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotificationsScreen()),
+                  );
+                },
+              );
+            },
           ),
         ],
       ),
@@ -54,24 +69,29 @@ class HomeScreen extends ConsumerWidget {
             child: networksAsync.when(
               data: (networks) {
                 if (networks.isEmpty) {
-                  return const Center(
+                  return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.wifi_off_rounded,
-                          size: 64,
-                          color: AppTheme.textMuted,
+                          size: 80,
+                          color: AppTheme.border,
                         ),
-                        SizedBox(height: 16),
-                        Text('لا توجد شبكات متاحة'),
+                        const SizedBox(height: 16),
+                        Text(
+                          'لا توجد شبكات متاحة',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                color: AppTheme.textMuted,
+                              ),
+                        ),
                       ],
                     ),
                   );
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: networks.length,
                   itemBuilder: (context, index) {
                     final network = networks[index];
@@ -80,8 +100,22 @@ class HomeScreen extends ConsumerWidget {
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) =>
-                  const Center(child: Text('حدث خطأ في تحميل الشبكات')),
+              error: (e, __) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline_rounded, size: 64, color: AppTheme.error),
+                      const SizedBox(height: 16),
+                      Text(
+                        'حدث خطأ في تحميل الشبكات',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -98,7 +132,8 @@ class NetworkCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 12, left: 16, right: 16),
+      clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: () {
           Navigator.push(
@@ -108,61 +143,81 @@ class NetworkCard extends StatelessWidget {
             ),
           );
         },
-        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
             children: [
-              Row(
-                children: [
-                  CircleAvatar(
-                    backgroundColor: AppTheme.primary.withValues(alpha: 0.1),
-                    child: Text(
-                      network.name.isNotEmpty ? network.name[0] : '?',
-                      style: const TextStyle(
-                        color: AppTheme.primary,
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                alignment: Alignment.center,
+                child: Text(
+                  network.commercialName.isNotEmpty ? network.commercialName[0] : '?',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          network.name,
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                        Flexible(
+                          child: Text(
+                            network.commercialName,
+                            style: Theme.of(context).textTheme.titleLarge,
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        Text(
-                          network.locationText,
-                          style: const TextStyle(color: AppTheme.textSecondary),
+                        if (network.isVerified) ...[
+                          const SizedBox(width: 6),
+                          const Icon(
+                            Icons.verified_user_rounded,
+                            color: AppTheme.accent,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'موثّقة',
+                            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                                  color: AppTheme.accentDark,
+                                ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on_outlined,
+                          size: 14,
+                          color: AppTheme.textSecondary,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            network.locationText.isNotEmpty ? network.locationText : 'العنوان غير محدد',
+                            style: Theme.of(context).textTheme.bodyMedium,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                  if (network.isFeatured)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accent.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        'مميز',
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: AppTheme.accentDark,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                ],
+                  ],
+                ),
+              ),
+              const Icon(
+                Icons.chevron_right_rounded,
+                color: AppTheme.textMuted,
               ),
             ],
           ),

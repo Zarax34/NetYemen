@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NetYemen — لوحة الإدارة</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+<div id="login">
+  <div class="card login-card">
+    <div class="brand">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+        <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+      <h2>NetYemen Ops</h2>
+      <p>بوابة إدارة المنصة</p>
+    </div>
+    
+    <div id="step-google">
+      <button class="btn btn-primary w-full mt-4" id="google-signin">تسجيل الدخول عبر Google</button>
+      <p class="login-hint mt-2">يجب أن يملك الحساب صلاحية إدارة المنصة</p>
+    </div>
+  </div>
+</div>
+
+<div id="shell">
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+        <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+        <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+        <line x1="12" y1="20" x2="12.01" y2="20"></line>
+      </svg>
+      <h1>NetYemen</h1>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group">عام</div>
+      <a href="#dashboard" data-view="dashboard">لوحة القيادة</a>
+      <a href="#networks" data-view="networks">الشبكات</a>
+      <a href="#ssid" data-view="ssid">توثيق المعرفات (SSID)</a>
+      <a href="#packages" data-view="packages">الباقات</a>
+      <a href="#users" data-view="users">المستخدمون والأدوار</a>
+      
+      <div class="nav-group">المالية</div>
+      <a href="#destinations" data-view="destinations">وجهات الدفع</a>
+      <a href="#deposits" data-view="deposits">طلبات الشحن</a>
+      <a href="#settlements" data-view="settlements">تصفية المستحقات</a>
+      <a href="#commission" data-view="commission">إعدادات العمولة</a>
+      
+      <div class="nav-group">العمليات</div>
+      <a href="#cards" data-view="cards">خزنة الكروت</a>
+      <a href="#notifications" data-view="notifications">الإشعارات</a>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="whoami" class="user-info"></div>
+      <button class="btn btn-ghost w-full" id="logout">تسجيل الخروج</button>
+    </div>
+  </aside>
+  <main class="main-content">
+    <div class="topbar">
+      <h2 id="page-title">لوحة القيادة</h2>
+      <button class="menu-toggle btn btn-icon" id="menu-toggle">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+      </button>
+    </div>
+    <div id="view" class="view-container"></div>
+  </main>
+</div>
+
+<!-- Custom Modal Overlay -->
+<div id="modal-overlay" class="modal-overlay">
+  <div class="modal-container">
+    <div class="modal-header">
+      <h3 id="modal-title">تأكيد</h3>
+      <button class="btn btn-icon btn-close" id="modal-close">&times;</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- Non-blocking Toasts -->
+<div id="toast-container" class="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="./config.js"></script>
+<script src="./app.js"></script>
+
+</body>
+</html>

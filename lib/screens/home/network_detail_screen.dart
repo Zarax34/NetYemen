@@ -1,6 +1,8 @@
 // lib/screens/home/network_detail_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
+
 import '../../models/network_model.dart';
 import '../../providers/app_providers.dart';
 import '../../utils/app_theme.dart';
@@ -17,20 +19,28 @@ class NetworkDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _NetworkDetailScreenState extends ConsumerState<NetworkDetailScreen> {
-  int? _selectedDenomination;
+  NetworkPackage? _selected;
   bool _isPurchasing = false;
 
-  Future<void> _purchaseCard() async {
-    if (_selectedDenomination == null) return;
+  /// مفتاح تكرار ثابت لمحاولة الشراء الحالية.
+  ///
+  /// يُولَّد مرة عند اختيار الباقة لا عند كل ضغطة، حتى تُرجع إعادة الإرسال
+  /// بعد انقطاع الشبكة العملية الأولى بدل خصم المبلغ مرتين.
+  String? _idempotencyKey;
 
-    final user = ref.read(currentUserProvider);
-    if (user == null) {
-      _showError('يرجى تسجيل الدخول أولاً');
-      return;
-    }
+  void _select(NetworkPackage package) {
+    setState(() {
+      _selected = package;
+      _idempotencyKey = const Uuid().v4();
+    });
+  }
 
-    final walletBalance = ref.read(walletBalanceProvider);
-    if (walletBalance < _selectedDenomination!) {
+  Future<void> _purchase() async {
+    final package = _selected;
+    final key = _idempotencyKey;
+    if (package == null || key == null) return;
+
+    if (ref.read(walletBalanceProvider) < package.price) {
       _showError('رصيد غير كافٍ في المحفظة');
       return;
     }
@@ -39,100 +49,64 @@ class _NetworkDetailScreenState extends ConsumerState<NetworkDetailScreen> {
 
     try {
       final service = ref.read(supabaseServiceProvider);
-
-      final result = await service.purchaseCard(
-        userId: user.id,
-        networkId: widget.network.id,
-        denomination: _selectedDenomination!,
+      final result = await service.purchasePackage(
+        packageId: package.id,
+        idempotencyKey: key,
       );
 
-      if (result != null && mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PurchaseSuccessScreen(
-              cardNumber: result['card_number'] ?? '',
-              denomination: _selectedDenomination!,
-              networkName: widget.network.name,
-            ),
+      // الرصيد والمشتريات تغيّرا على الخادم.
+      ref.invalidate(userProfileProvider);
+      ref.invalidate(userPurchasesProvider);
+
+      if (!mounted) return;
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PurchaseSuccessScreen(
+            purchaseId: result.purchaseId,
+            packageName: package.name,
+            amountPaid: result.amountPaid,
+            networkName: widget.network.commercialName,
           ),
-        );
-      }
+        ),
+      );
     } catch (e) {
-      _showError('فشلت عملية الشراء: $e');
+      _showError(_purchaseErrorText(e));
     } finally {
-      setState(() => _isPurchasing = false);
+      if (mounted) setState(() => _isPurchasing = false);
     }
   }
 
+  /// يترجم أخطاء `purchase_package` المعروفة إلى رسائل مفهومة.
+  String _purchaseErrorText(Object e) {
+    final raw = e.toString();
+    if (raw.contains('INSUFFICIENT_BALANCE')) return 'رصيد غير كافٍ في المحفظة';
+    if (raw.contains('OUT_OF_STOCK') || raw.contains('NO_CARD')) {
+      return 'نفدت كروت هذه الباقة، جرّب باقة أخرى';
+    }
+    if (raw.contains('WALLET_ACCOUNT_MISSING')) {
+      return 'لم يتم إنشاء محفظتك بعد، أعد تسجيل الدخول';
+    }
+    if (raw.contains('PACKAGE_NOT_AVAILABLE') || raw.contains('NOT_PUBLIC')) {
+      return 'هذه الباقة لم تعد متاحة';
+    }
+    return 'فشلت عملية الشراء: $raw';
+  }
+
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
+    final packagesAsync = ref.watch(networkPackagesProvider(widget.network.id));
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.network.name),
-      ),
+      appBar: AppBar(title: Text(widget.network.commercialName)),
       body: Column(
         children: [
-          // Network Info Header
-          Container(
-            padding: const EdgeInsets.all(20),
-            color: AppTheme.primary,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 32,
-                      backgroundColor: Colors.white,
-                      child: Text(
-                        widget.network.name.isNotEmpty
-                            ? widget.network.name[0]
-                            : '?',
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.primary,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            widget.network.name,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            widget.network.locationText,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.white.withValues(alpha: 0.8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // Denominations
+          _header(),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -140,101 +114,212 @@ class _NetworkDetailScreenState extends ConsumerState<NetworkDetailScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text(
-                    'اختر الفئة',
+                    'اختر الباقة',
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
                   Expanded(
-                    child: GridView.count(
-                      crossAxisCount: 2,
-                      childAspectRatio: 1.5,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      children: [200, 500, 1000, 5000].map((denom) {
-                        final isSelected = _selectedDenomination == denom;
-                        return InkWell(
-                          onTap: () {
-                            setState(() {
-                              _selectedDenomination = denom;
-                            });
-                          },
-                          borderRadius: BorderRadius.circular(16),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? AppTheme.primary
-                                  : AppTheme.surface,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: isSelected
-                                    ? AppTheme.primary
-                                    : AppTheme.border,
-                                width: 2,
-                              ),
+                    child: packagesAsync.when(
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (e, _) => Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline_rounded, size: 48, color: AppTheme.error),
+                            const SizedBox(height: 12),
+                            Text(
+                              'تعذّر تحميل الباقات\n$e',
+                              textAlign: TextAlign.center,
+                              style: Theme.of(context).textTheme.bodyMedium,
                             ),
-                            child: Center(
+                          ],
+                        ),
+                      ),
+                      data: (packages) => packages.isEmpty
+                          ? Center(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
+                                  const Icon(Icons.shopping_bag_outlined, size: 64, color: AppTheme.border),
+                                  const SizedBox(height: 16),
                                   Text(
-                                    '$denom',
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.bold,
-                                      color: isSelected
-                                          ? Colors.white
-                                          : AppTheme.textPrimary,
-                                    ),
-                                  ),
-                                  Text(
-                                    'ريال يمني',
-                                    style: TextStyle(
-                                      color: isSelected
-                                          ? Colors.white.withValues(alpha: 0.8)
-                                          : AppTheme.textSecondary,
-                                    ),
+                                    'لا توجد باقات معروضة',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                          color: AppTheme.textMuted,
+                                        ),
                                   ),
                                 ],
                               ),
+                            )
+                          : ListView.separated(
+                              itemCount: packages.length,
+                              separatorBuilder: (_, __) => const SizedBox(height: 12),
+                              itemBuilder: (_, i) => _packageTile(packages[i]),
                             ),
-                          ),
-                        );
-                      }).toList(),
                     ),
                   ),
+                  if (_selected != null) _buyButton(),
                 ],
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          // Purchase Button
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              width: double.infinity,
-              height: 54,
-              child: ElevatedButton(
-                onPressed: _selectedDenomination != null && !_isPurchasing
-                    ? _purchaseCard
-                    : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accent,
-                ),
-                child: _isPurchasing
-                    ? const CircularProgressIndicator(color: Colors.white)
-                    : Text(
-                        _selectedDenomination != null
-                            ? 'شراء بـ $_selectedDenomination ر.ي'
-                            : 'اختر الفئة أولاً',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+  Widget _header() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: const BoxDecoration(
+        gradient: AppTheme.primaryGradient,
+      ),
+      width: double.infinity,
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 32,
+            backgroundColor: Colors.white,
+            child: Text(
+              widget.network.commercialName.isNotEmpty
+                  ? widget.network.commercialName[0]
+                  : '?',
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: AppTheme.primary,
               ),
             ),
           ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        widget.network.commercialName,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (widget.network.isVerified) ...[
+                      const SizedBox(width: 6),
+                      const Icon(
+                        Icons.verified_user_rounded,
+                        color: Colors.greenAccent,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 4),
+                      const Text(
+                        'موثّقة',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.greenAccent,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  widget.network.locationText,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _packageTile(NetworkPackage package) {
+    final isSelected = _selected?.id == package.id;
+    final details = [package.durationText, package.speedText]
+        .where((t) => t.isNotEmpty)
+        .join(' - ');
+    final currencyLabel = package.currency == 'YER' ? 'ر.ي' : package.currency;
+
+    return InkWell(
+      onTap: () => _select(package),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? AppTheme.primary : AppTheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppTheme.primary : AppTheme.border,
+            width: 2,
+          ),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    package.name,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: isSelected ? Colors.white : AppTheme.textPrimary,
+                    ),
+                  ),
+                  if (details.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      details,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: isSelected
+                            ? Colors.white.withValues(alpha: 0.8)
+                            : AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Text(
+              '${package.price} $currencyLabel',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? Colors.white : AppTheme.primary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buyButton() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: SizedBox(
+        width: double.infinity,
+        height: 54,
+        child: ElevatedButton(
+          onPressed: _isPurchasing ? null : _purchase,
+          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent),
+          child: _isPurchasing
+              ? const CircularProgressIndicator(color: Colors.white)
+              : Text('شراء - ${_selected!.price} ر.ي'),
+        ),
       ),
     );
   }

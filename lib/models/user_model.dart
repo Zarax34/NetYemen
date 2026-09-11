@@ -1,57 +1,56 @@
 // lib/models/user_model.dart
+
+/// الملف الشخصي، مطابق لجدول `profiles`.
+///
+/// انتبه لمصدرَي البيانات: رقم الهاتف ليس عموداً في `profiles` بل يعيش في
+/// `auth.users`، والرصيد في `wallet_accounts.cached_balance`. يجمعهما
+/// [SupabaseService.getUserProfile] عبر [AppUser.fromParts].
 class AppUser {
   final String id;
   final String phone;
   final String? fullName;
-  final String role;
+
+  /// إحدى: active | suspended | pending_deletion
+  final String accountStatus;
+
   final int walletBalance;
-  final String? governorate;
-  final String? city;
-  final String? district;
-  final bool isActive;
+  final String currency;
+  final String? defaultGovernorate;
+  final String? defaultCity;
   final DateTime? createdAt;
 
   const AppUser({
     required this.id,
-    required this.phone,
+    this.phone = '',
     this.fullName,
-    this.role = 'customer',
+    this.accountStatus = 'active',
     this.walletBalance = 0,
-    this.governorate,
-    this.city,
-    this.district,
-    this.isActive = true,
+    this.currency = 'YER',
+    this.defaultGovernorate,
+    this.defaultCity,
     this.createdAt,
   });
 
-  factory AppUser.fromJson(Map<String, dynamic> json) {
+  /// يبني المستخدم من صف `profiles` مع الهاتف والمحفظة من مصدريهما.
+  factory AppUser.fromParts({
+    required Map<String, dynamic> profile,
+    String? phone,
+    Map<String, dynamic>? wallet,
+  }) {
     return AppUser(
-      id: json['id'] ?? '',
-      phone: json['phone'] ?? '',
-      fullName: json['full_name'],
-      role: json['role'] ?? 'customer',
-      walletBalance: json['wallet_balance'] ?? 0,
-      governorate: json['governorate'],
-      city: json['city'],
-      district: json['district'],
-      isActive: json['is_active'] ?? true,
-      createdAt: json['created_at'] != null
-          ? DateTime.parse(json['created_at'])
+      id: profile['id'] ?? '',
+      phone: phone ?? '',
+      fullName: profile['full_name'],
+      accountStatus: profile['account_status'] ?? 'active',
+      walletBalance: wallet?['cached_balance'] ?? 0,
+      currency: wallet?['currency'] ?? 'YER',
+      defaultGovernorate: profile['default_governorate'],
+      defaultCity: profile['default_city'],
+      createdAt: profile['created_at'] != null
+          ? DateTime.tryParse(profile['created_at'])
           : null,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'phone': phone,
-      'full_name': fullName,
-      'role': role,
-      'wallet_balance': walletBalance,
-      'governorate': governorate,
-      'city': city,
-      'district': district,
-      'is_active': isActive,
-    };
-  }
+  bool get isActive => accountStatus == 'active';
 }

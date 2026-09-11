@@ -15,3 +15,9 @@ android/key.properties
 *.keystore
 .env
 .env.*
+android/.kotlin/
+
+admin/config.js
+hive/
+roster.json
+roster-backups/

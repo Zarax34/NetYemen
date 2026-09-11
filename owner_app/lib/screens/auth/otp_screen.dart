@@ -1,9 +1,12 @@
 // lib/screens/auth/otp_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/app_providers.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../providers/owner_providers.dart';
 import '../../utils/app_theme.dart';
+import '../../utils/dev_config.dart';
 import '../main_screen.dart';
+import '../not_owner_screen.dart';
 
 class OTPScreen extends ConsumerStatefulWidget {
   final String phone;
@@ -18,6 +21,15 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
   final _otpController = TextEditingController();
   bool _isLoading = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // تعبئة الرمز التجريبي في بناء التطوير فقط (مقفل في release).
+    if (DevConfig.isEnabled && DevConfig.testOtp.isNotEmpty) {
+      _otpController.text = DevConfig.testOtp;
+    }
+  }
+
   Future<void> _verifyOTP() async {
     final otp = _otpController.text.trim();
     if (otp.length != 6) {
@@ -28,27 +40,39 @@ class _OTPScreenState extends ConsumerState<OTPScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final service = ref.read(supabaseServiceProvider);
-      final response = await service.verifyOTP(widget.phone, otp);
+      final service = ref.read(ownerServiceProvider);
 
-      if (response.user != null) {
-        await service.createOrUpdateUser(
-          userId: response.user!.id,
-          phone: widget.phone,
-        );
-
-        if (!mounted) return;
-
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const MainScreen()),
-          (route) => false,
-        );
+      // 1) التحقق من الرمز. فشله هنا وحده يعني أن الرمز خاطئ.
+      final AuthResponse response;
+      try {
+        response = await service.verifyOTP(widget.phone, otp);
+      } on AuthException catch (e) {
+        debugPrint('verifyOTP failed: ${e.message}');
+        _showError('رمز التحقق غير صحيح');
+        return;
       }
-    } catch (e) {
-      _showError('رمز التحقق غير صحيح');
+
+      if (response.user == null) {
+        _showError('رمز التحقق غير صحيح');
+        return;
+      }
+
+      if (!mounted) return;
+
+      // 2) حاجز الدور: مصادقة ناجحة لا تكفي — يجب أن يملك شبكة فعلاً.
+      final networks = await service.getOwnedNetworks();
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => networks.isEmpty ? const NotOwnerScreen() : const MainScreen(),
+        ),
+        (route) => false,
+      );
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

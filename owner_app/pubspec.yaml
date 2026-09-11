@@ -1,0 +1,40 @@
+name: owner
+description: NetYemen Owner — تطبيق أصحاب الشبكات لإدارة شبكاتهم ومخزون الكروت ومبيعاتهم
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Localization (RTL + الترجمات العربية لعناصر Material)
+  flutter_localizations:
+    sdk: flutter
+
+  # Supabase
+  supabase_flutter: ^2.5.0
+
+  # State Management
+  flutter_riverpod: ^2.5.0
+
+  # UI Utilities
+  flutter_screenutil: ^5.9.0
+
+  # Icons
+  cupertino_icons: ^1.0.6
+
+  # مفاتيح التكرار (idempotency) للعمليات القادمة (رفع الكروت، إلخ)
+  uuid: ^4.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

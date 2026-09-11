@@ -7,6 +7,7 @@ import '../providers/owner_providers.dart';
 import 'auth/login_screen.dart';
 import 'main_screen.dart';
 import 'not_owner_screen.dart';
+import 'create_first_network_screen.dart';
 
 class SplashScreen extends ConsumerWidget {
   const SplashScreen({super.key});
@@ -63,11 +64,42 @@ class _RoleGate extends ConsumerWidget {
 
     return networksAsync.when(
       data: (networks) {
-        if (networks.isEmpty) {
-          return const NotOwnerScreen();
-        } else {
+        if (networks.isNotEmpty) {
           return const MainScreen();
         }
+        
+        final hasRoleAsync = ref.watch(hasNetworkOwnerRoleProvider);
+        return hasRoleAsync.when(
+          data: (hasRole) {
+            if (hasRole) {
+              return const CreateFirstNetworkScreen();
+            } else {
+              return const NotOwnerScreen();
+            }
+          },
+          loading: () => const _SplashBranding(),
+          error: (err, stack) => Scaffold(
+            backgroundColor: AppTheme.background,
+            body: Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: AppTheme.error),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'تعذّر التحقق من الصلاحيات',
+                    style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () => ref.invalidate(hasNetworkOwnerRoleProvider),
+                    child: const Text('إعادة المحاولة'),
+                  )
+                ],
+              ),
+            ),
+          ),
+        );
       },
       loading: () => const _SplashBranding(),
       error: (err, stack) => Scaffold(

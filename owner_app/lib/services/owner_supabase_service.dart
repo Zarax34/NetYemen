@@ -41,4 +41,26 @@ class OwnerSupabaseService {
         .map((json) => OwnedNetwork.fromJson(json as Map<String, dynamic>))
         .toList();
   }
+
+  Future<bool> hasPlatformRole(String role) async {
+    final response = await _client.rpc('has_platform_role', params: {'p_role': role});
+    return response == true;
+  }
+
+  Future<String> createNetworkDraft({
+    required String commercialName,
+    required String governorate,
+    String? description,
+    String? city,
+    String? district,
+  }) async {
+    final response = await _client.rpc('create_network_draft', params: {
+      'p_commercial_name': commercialName,
+      'p_description': description,
+      'p_governorate': governorate,
+      'p_city': city,
+      'p_district': district,
+    });
+    return response.toString();
+  }
 }

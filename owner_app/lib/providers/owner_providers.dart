@@ -21,6 +21,14 @@ final currentUserProvider = Provider<User?>((ref) {
   return authState?.session?.user ?? Supabase.instance.client.auth.currentUser;
 });
 
+final hasNetworkOwnerRoleProvider = FutureProvider<bool>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return false;
+  
+  final service = ref.watch(ownerServiceProvider);
+  return await service.hasPlatformRole('network_owner');
+});
+
 // Owned networks (حاجز الدور + محتوى لوحة التحكم)
 final ownedNetworksProvider = FutureProvider<List<OwnedNetwork>>((ref) async {
   final user = ref.watch(currentUserProvider);

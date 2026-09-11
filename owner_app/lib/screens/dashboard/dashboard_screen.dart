@@ -90,6 +90,21 @@ class _NetworkCard extends StatelessWidget {
     }
   }
 
+  String _statusText() {
+    switch (network.status) {
+      case 'active':
+        return 'نشطة';
+      case 'suspended':
+        return 'موقوفة';
+      case 'rejected':
+        return 'مرفوضة';
+      case 'pending_approval':
+        return 'قيد الاعتماد';
+      default:
+        return network.status;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -130,6 +145,14 @@ class _NetworkCard extends StatelessWidget {
                       network.locationText,
                       style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13),
                     ),
+                  if (network.status == 'pending_approval')
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4.0),
+                      child: Text(
+                        'الشبكة قيد الاعتماد من الإدارة، ولن تظهر للعملاء بعد.',
+                        style: TextStyle(color: AppTheme.warning, fontSize: 12),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -140,7 +163,7 @@ class _NetworkCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Text(
-                network.status,
+                _statusText(),
                 style: TextStyle(color: _statusColor(), fontSize: 11, fontWeight: FontWeight.w600),
               ),
             ),

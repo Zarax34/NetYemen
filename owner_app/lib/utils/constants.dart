@@ -9,4 +9,29 @@ class AppConstants {
 
   static const String appName = 'NetYemen Owner';
   static const String appVersion = '1.0.0';
+
+  static const List<String> yemenGovernorates = [
+    'أمانة العاصمة',
+    'صنعاء',
+    'عدن',
+    'تعز',
+    'حضرموت',
+    'الحديدة',
+    'إب',
+    'أبين',
+    'لحج',
+    'مأرب',
+    'شبوة',
+    'المهرة',
+    'حجة',
+    'صعدة',
+    'الجوف',
+    'المحويت',
+    'عمران',
+    'الضالع',
+    'ذمار',
+    'ريمة',
+    'البيضاء',
+    'أرخبيل سقطرى',
+  ];
 }

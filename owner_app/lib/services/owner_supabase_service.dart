@@ -13,15 +13,13 @@ class OwnerSupabaseService {
 
   // ==================== AUTH ====================
 
-  Future<void> signInWithPhone(String phone) async {
-    await _client.auth.signInWithOtp(phone: phone);
-  }
+  static const String _oauthRedirect = 'com.netyemen.owner://login-callback';
 
-  Future<AuthResponse> verifyOTP(String phone, String otp) async {
-    return await _client.auth.verifyOTP(
-      phone: phone,
-      token: otp,
-      type: OtpType.sms,
+  Future<void> signInWithGoogle() async {
+    await _client.auth.signInWithOAuth(
+      OAuthProvider.google,
+      redirectTo: _oauthRedirect,
+      authScreenLaunchMode: LaunchMode.externalApplication,
     );
   }
 

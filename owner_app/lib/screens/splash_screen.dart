@@ -1,65 +1,58 @@
 // lib/screens/splash_screen.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_theme.dart';
 import '../providers/owner_providers.dart';
 import 'auth/login_screen.dart';
 import 'main_screen.dart';
 import 'not_owner_screen.dart';
 
-/// شاشة البداية: مصادقة، ثم **حاجز دور صاحب الشبكة**.
-///
-/// المصادقة الناجحة وحدها لا تكفي للدخول — يجب أن يملك المستخدم شبكة واحدة
-/// على الأقل فعلاً (`get_owned_networks()` غير فارغة)، وإلا فهو مستخدم عميل
-/// عادي فتح تطبيق الملّاك بالخطأ، ويُعاد تسجيل خروجه.
-class SplashScreen extends ConsumerStatefulWidget {
+class SplashScreen extends ConsumerWidget {
   const SplashScreen({super.key});
 
   @override
-  ConsumerState<SplashScreen> createState() => _SplashScreenState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authStateProvider);
 
-class _SplashScreenState extends ConsumerState<SplashScreen> {
-  @override
-  void initState() {
-    super.initState();
-    _checkAuthAndRole();
-  }
-
-  Future<void> _checkAuthAndRole() async {
-    await Future.delayed(const Duration(seconds: 2));
-
-    if (!mounted) return;
-
-    final user = ref.read(currentUserProvider);
-    if (user == null) {
-      _goTo(const LoginScreen());
-      return;
-    }
-
-    try {
-      final service = ref.read(ownerServiceProvider);
-      final networks = await service.getOwnedNetworks();
-
-      if (!mounted) return;
-
-      if (networks.isEmpty) {
-        _goTo(const NotOwnerScreen());
-      } else {
-        _goTo(const MainScreen());
-      }
-    } catch (_) {
-      if (!mounted) return;
-      _goTo(const LoginScreen());
-    }
-  }
-
-  void _goTo(Widget screen) {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => screen),
+    return authState.when(
+      data: (state) {
+        final session = state.session ??
+            Supabase.instance.client.auth.currentSession;
+        return session != null ? const _RoleGate() : const LoginScreen();
+      },
+      loading: () {
+        final session = Supabase.instance.client.auth.currentSession;
+        return session != null ? const _RoleGate() : const _SplashBranding();
+      },
+      error: (_, __) => const LoginScreen(),
     );
   }
+}
+
+class _RoleGate extends ConsumerWidget {
+  const _RoleGate();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final networksAsync = ref.watch(ownedNetworksProvider);
+
+    return networksAsync.when(
+      data: (networks) {
+        if (networks.isEmpty) {
+          return const NotOwnerScreen();
+        } else {
+          return const MainScreen();
+        }
+      },
+      loading: () => const _SplashBranding(),
+      error: (_, __) => const LoginScreen(),
+    );
+  }
+}
+
+class _SplashBranding extends StatelessWidget {
+  const _SplashBranding();
 
   @override
   Widget build(BuildContext context) {
@@ -85,7 +78,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'لوحة تحكم أصحاب الشبكات',
+              'إدارة شبكتك بفعالية',
               style: TextStyle(
                 fontSize: 16,
                 color: AppTheme.textOnPrimary.withValues(alpha: 0.8),

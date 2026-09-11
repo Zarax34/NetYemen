@@ -117,7 +117,7 @@ class OwnerInventoryService {
   Future<List<Map<String, dynamic>>> getNetworkPackages(String networkId) async {
     final response = await _client
         .from('network_packages')
-        .select('id, name, price, denomination, data_quota_mb, validity_hours, is_active')
+        .select('id, name, price, currency, duration_value, duration_unit, speed_mbps, package_type, status')
         .eq('network_id', networkId)
         .order('price', ascending: true);
     return List<Map<String, dynamic>>.from(response as List);

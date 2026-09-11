@@ -22,8 +22,8 @@ class _PackageFormScreenState extends ConsumerState<PackageFormScreen> {
   late TextEditingController _speedCtrl;
 
   String _currency = 'YER';
-  String _packageType = 'time_based';
-  String _durationUnit = 'hours';
+  String _packageType = 'time';
+  String _durationUnit = 'hour';
 
   bool _isLoading = false;
 
@@ -39,8 +39,8 @@ class _PackageFormScreenState extends ConsumerState<PackageFormScreen> {
 
     if (p != null) {
       _currency = p['currency'] ?? 'YER';
-      _packageType = p['package_type'] ?? 'time_based';
-      _durationUnit = p['duration_unit'] ?? 'hours';
+      _packageType = p['package_type'] ?? 'time';
+      _durationUnit = p['duration_unit'] ?? 'hour';
     }
   }
 
@@ -130,8 +130,9 @@ class _PackageFormScreenState extends ConsumerState<PackageFormScreen> {
               initialValue: _packageType,
               decoration: const InputDecoration(labelText: 'نوع الباقة'),
               items: const [
-                DropdownMenuItem(value: 'time_based', child: Text('وقت (Time-based)')),
-                DropdownMenuItem(value: 'volume_based', child: Text('حجم (Volume-based)')),
+                DropdownMenuItem(value: 'time', child: Text('وقت (Time)')),
+                DropdownMenuItem(value: 'volume', child: Text('حجم (Volume)')),
+                DropdownMenuItem(value: 'unlimited', child: Text('غير محدود (Unlimited)')),
               ],
               onChanged: (v) => setState(() => _packageType = v!),
             ),
@@ -150,9 +151,10 @@ class _PackageFormScreenState extends ConsumerState<PackageFormScreen> {
                     initialValue: _durationUnit,
                     decoration: const InputDecoration(labelText: 'الوحدة'),
                     items: const [
-                      DropdownMenuItem(value: 'hours', child: Text('ساعات')),
-                      DropdownMenuItem(value: 'days', child: Text('أيام')),
-                      DropdownMenuItem(value: 'months', child: Text('أشهر')),
+                      DropdownMenuItem(value: 'hour', child: Text('ساعة')),
+                      DropdownMenuItem(value: 'day', child: Text('يوم')),
+                      DropdownMenuItem(value: 'week', child: Text('أسبوع')),
+                      DropdownMenuItem(value: 'month', child: Text('شهر')),
                     ],
                     onChanged: (v) => setState(() => _durationUnit = v!),
                   ),

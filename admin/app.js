@@ -776,25 +776,36 @@
       viewEl.innerHTML = '<div class="card"><div class="card-header"><h3>إرسال إشعار جديد</h3></div>' +
         '<div class="grid grid-2 mb-4">' +
           '<div><label>العنوان</label><input id="n-title" placeholder="عرض جديد!"></div>' +
-          '<div><label>نوع الجمهور</label><select id="n-audience"><option value="all">الكل</option><option value="customers">العملاء فقط</option><option value="network_owners">ملاك الشبكات</option></select></div>' +
-          '<div><label>القناة</label><select id="n-channel"><option value="push">تنبيه (Push)</option><option value="sms">رسالة نصية (SMS)</option></select></div>' +
-          '<div><label>رابط عميق (Deep Link)</label><input id="n-link" placeholder="/offers"></div>' +
+          '<div><label>نوع الجمهور</label><select id="n-audience"><option value="all_active_customers">كل العملاء</option><option value="network_owner_operator">ملاك ومشغّلو الشبكات</option><option value="governorate">حسب المحافظة</option></select></div>' +
+          '<div><label>نوع الإعلان</label><select id="n-channel"><option value="announcement">إعلان</option><option value="platform_update">تحديث المنصة</option><option value="offer">عرض</option></select></div>' +
+          '<div id="n-gov-wrap" style="display:none"><label>المحافظة</label><select id="n-gov">' + GOVERNORATES.map(function (g) { return '<option value="' + esc(g) + '">' + esc(g) + '</option>'; }).join('') + '</select></div>' +
+          '<div><label>رابط عميق (Deep Link)</label><input id="n-link" placeholder="notifications"></div>' +
         '</div>' +
         '<label>النص</label><textarea id="n-body" rows="3" class="mb-4"></textarea>' +
         '<div class="flex items-center gap-2 mb-4"><input type="checkbox" id="n-imm" checked> <label style="margin:0">إرسال فوراً</label></div>' +
         '<button class="btn btn-primary" id="n-send">إرسال الإشعار</button></div>' +
         '<div class="card"><div class="card-header"><h3>حالة نواقل الإشعارات</h3></div>' + table(['الناقل', 'الحالة', 'في الانتظار', 'فشلت'], transportRows) + '</div>';
 
+      var audSel = document.getElementById('n-audience');
+      var govWrap = document.getElementById('n-gov-wrap');
+      if (audSel && govWrap) {
+        audSel.onchange = function () { govWrap.style.display = this.value === 'governorate' ? '' : 'none'; };
+      }
+
       var btnSend = document.getElementById('n-send');
       if (btnSend) btnSend.onclick = function() {
         var title = document.getElementById('n-title').value.trim();
         var body = document.getElementById('n-body').value.trim();
         if(!title || !body) return toast('أدخل العنوان والنص', true);
+        var audience = document.getElementById('n-audience').value;
+        var payload = audience === 'governorate'
+          ? { governorate: document.getElementById('n-gov').value }
+          : {};
         this.disabled = true;
         rpc('admin_compose_notification', {
           p_title_ar: title, p_body_ar: body,
-          p_audience_type: document.getElementById('n-audience').value,
-          p_audience_payload: {},
+          p_audience_type: audience,
+          p_audience_payload: payload,
           p_channel_class: document.getElementById('n-channel').value,
           p_deep_link: document.getElementById('n-link').value.trim() || null,
           p_scheduled_for: null, p_idempotency_key: null,

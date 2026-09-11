@@ -16,7 +16,9 @@ final authStateProvider = StreamProvider<AuthState>((ref) {
 });
 
 final currentUserProvider = Provider<User?>((ref) {
-  return Supabase.instance.client.auth.currentUser;
+  // Watch auth state to update automatically when switching accounts
+  final authState = ref.watch(authStateProvider).value;
+  return authState?.session?.user ?? Supabase.instance.client.auth.currentUser;
 });
 
 // Owned networks (حاجز الدور + محتوى لوحة التحكم)

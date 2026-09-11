@@ -1,13 +1,16 @@
-// lib/main.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:app_links/app_links.dart';
 
 import 'utils/constants.dart';
 import 'utils/app_theme.dart';
 import 'screens/splash_screen.dart';
+
+final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,12 +27,77 @@ void main() async {
   runApp(const ProviderScope(child: NetYemenOwnerApp()));
 }
 
-class NetYemenOwnerApp extends StatelessWidget {
+class NetYemenOwnerApp extends StatefulWidget {
   const NetYemenOwnerApp({super.key});
+
+  @override
+  State<NetYemenOwnerApp> createState() => _NetYemenOwnerAppState();
+}
+
+class _NetYemenOwnerAppState extends State<NetYemenOwnerApp> {
+  late AppLinks _appLinks;
+  StreamSubscription<Uri>? _linkSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _initDeepLinks();
+  }
+
+  Future<void> _initDeepLinks() async {
+    _appLinks = AppLinks();
+
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        _handleLink(initialUri);
+      }
+    } catch (e) {
+      // Ignore
+    }
+
+    _linkSubscription = _appLinks.uriLinkStream.listen((uri) {
+      _handleLink(uri);
+    }, onError: (err) {
+      // Ignore
+    });
+  }
+
+  Future<void> _handleLink(Uri uri) async {
+    if (uri.queryParameters.containsKey('code')) {
+      if (Supabase.instance.client.auth.currentSession == null) {
+        try {
+          await Supabase.instance.client.auth.getSessionFromUrl(uri);
+        } on AuthException catch (e) {
+          if (e.message.toLowerCase().contains('code already used') || 
+              e.message.toLowerCase().contains('invalid') || 
+              e.message.toLowerCase().contains('pkce') ||
+              e.message.toLowerCase().contains('verifier')) {
+            // Quietly ignore: supabase's internal listener might have won the race.
+          } else {
+            scaffoldMessengerKey.currentState?.showSnackBar(
+              SnackBar(content: Text('خطأ في المصادقة: ${e.message}')),
+            );
+          }
+        } catch (e) {
+          scaffoldMessengerKey.currentState?.showSnackBar(
+            const SnackBar(content: Text('حدث خطأ غير متوقع أثناء تسجيل الدخول')),
+          );
+        }
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      scaffoldMessengerKey: scaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       title: AppConstants.appName,
       locale: const Locale('ar', 'YE'),

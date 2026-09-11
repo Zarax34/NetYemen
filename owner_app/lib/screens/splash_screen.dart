@@ -25,7 +25,31 @@ class SplashScreen extends ConsumerWidget {
         final session = Supabase.instance.client.auth.currentSession;
         return session != null ? const _RoleGate() : const _SplashBranding();
       },
-      error: (_, __) => const LoginScreen(),
+      error: (err, stack) => Scaffold(
+        backgroundColor: AppTheme.primary,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: Colors.white),
+              const SizedBox(height: 16),
+              const Text(
+                'حدث خطأ في المصادقة',
+                style: TextStyle(color: Colors.white, fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(authStateProvider),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppTheme.primary,
+                ),
+                child: const Text('إعادة المحاولة'),
+              )
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -46,7 +70,27 @@ class _RoleGate extends ConsumerWidget {
         }
       },
       loading: () => const _SplashBranding(),
-      error: (_, __) => const LoginScreen(),
+      error: (err, stack) => Scaffold(
+        backgroundColor: AppTheme.background,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, size: 64, color: AppTheme.error),
+              const SizedBox(height: 16),
+              const Text(
+                'تعذّر جلب بيانات الشبكة',
+                style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(ownedNetworksProvider),
+                child: const Text('إعادة المحاولة'),
+              )
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

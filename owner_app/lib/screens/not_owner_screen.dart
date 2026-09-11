@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/owner_providers.dart';
 import '../utils/app_theme.dart';
-import 'auth/login_screen.dart';
 
 /// تُعرض حين تنجح المصادقة لكن `get_owned_networks()` تعود فارغة — أي أن
 /// المستخدم ليس صاحب شبكة. تسجّل خروجه فوراً؛ لا يبقى مصادَقاً في تطبيق
@@ -19,16 +18,12 @@ class _NotOwnerScreenState extends ConsumerState<NotOwnerScreen> {
   @override
   void initState() {
     super.initState();
-    // تسجيل خروج فوري: هذا التطبيق ليس مكاناً لحساب بلا شبكات مملوكة.
-    ref.read(ownerServiceProvider).signOut();
+    // تمت إزالة تسجيل الخروج التلقائي هنا للحفاظ على استقرار الجلسة (P0)
   }
 
   void _backToLogin() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-      (route) => false,
-    );
+    ref.read(ownerServiceProvider).signOut();
+    // splash_screen ستستجيب لتغير الجلسة وتنقله لـ LoginScreen تلقائيا
   }
 
   @override

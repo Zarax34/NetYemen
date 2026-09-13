@@ -211,6 +211,16 @@ p { margin: 0 0 12px; }
   max-width: 400px;
   box-shadow: var(--shadow-lg);
 }
+
+/* PIN gate — same layout as #login, shown between Google sign-in and the shell */
+#pin-gate {
+  min-height: 100vh;
+  display: none;
+  place-items: center;
+  background: var(--primary-dark);
+  padding: 24px;
+}
+#pin-gate.on { display: grid; }
 .brand { text-align: center; margin-bottom: 32px; color: var(--primary); }
 .brand svg { margin-bottom: 12px; }
 .brand h2 { margin: 0; font-size: 24px; }

@@ -105,7 +105,10 @@
       UNAUTHENTICATED: 'انتهت الجلسة، سجّل الدخول من جديد',
       FORBIDDEN: 'لا تملك صلاحية لهذا الإجراء',
       NOT_FOUND: 'العنصر غير موجود',
-      INVALID_STATE: 'الحالة الحالية لا تسمح بهذا الإجراء'
+      INVALID_STATE: 'الحالة الحالية لا تسمح بهذا الإجراء',
+      INVALID_PIN: 'الرمز يجب أن يكون 6 أرقام',
+      PIN_ALREADY_SET: 'الرمز مضبوط مسبقاً',
+      PIN_NOT_SET: 'لم يتم ضبط رمز بعد'
     };
     for (var key in known) {
       if (raw.indexOf(key) !== -1) return known[key];
@@ -209,16 +212,119 @@
         });
       }
       return db.auth.getUser().then(function (r) {
-        document.getElementById('whoami').textContent = (r.data.user && (r.data.user.email || r.data.user.phone)) || '';
+        var user = r.data.user;
+        document.getElementById('whoami').textContent = (user && (user.email || user.phone)) || '';
         loginEl.style.display = 'none';
-        shellEl.classList.add('on');
-        route();
+        return runPinGate(user && user.id).catch(function (e) {
+          console.error('NetYemen admin: PIN gate failed', e);
+          toast(errText(e), true);
+          pinGateEl.classList.remove('on');
+          loginEl.style.display = '';
+        });
       });
     }).catch(function(e) {
       // خطأ عابر (شبكة/انقطاع) — لا نسجّل الخروج حتى لا يبدو المستخدم مطروداً عند كل تحديث
       console.error('NetYemen admin: has_platform_role check failed (transient), keeping session', e);
       toast('تعذّر التحقق من الصلاحية، تحقّق من الاتصال وحاول مجدداً', true);
     });
+  }
+
+  // ---------- قفل الرمز (PIN) ----------
+  // البوابة تُشغَّل بعد تأكيد صلاحية platform_admin وقبل عرض الواجهة. لا قفل خمول
+  // هنا (خاص بتطبيق المالك/المشغّل فقط) — فقط اكتشاف جهاز جديد + نسيت الرمز.
+
+  var pinGateEl = document.getElementById('pin-gate');
+  var pinSetupStep = document.getElementById('pin-setup-step');
+  var pinEntryStep = document.getElementById('pin-entry-step');
+  var pinGateTitle = document.getElementById('pin-gate-title');
+  var pinGateSub = document.getElementById('pin-gate-sub');
+
+  function pinTrustedKey(userId) { return 'pin_trusted_' + userId; }
+  function isDeviceTrusted(userId) {
+    try { return localStorage.getItem(pinTrustedKey(userId)) === '1'; } catch (e) { return false; }
+  }
+  function trustDevice(userId) {
+    try { localStorage.setItem(pinTrustedKey(userId), '1'); } catch (e) {}
+  }
+
+  function enterShellAfterPin() {
+    pinGateEl.classList.remove('on');
+    shellEl.classList.add('on');
+    route();
+  }
+
+  function runPinGate(userId) {
+    return rpc('has_account_pin').then(function (has) {
+      if (!has) return showPinSetup(userId);
+      if (isDeviceTrusted(userId)) return enterShellAfterPin();
+      return showPinEntry(userId);
+    });
+  }
+
+  function showPinSetup(userId) {
+    pinGateEl.classList.add('on');
+    pinEntryStep.style.display = 'none';
+    pinSetupStep.style.display = '';
+    pinGateTitle.textContent = 'إنشاء رمز الحماية';
+    pinGateSub.textContent = 'رمز من 6 أرقام يُطلب منك عند الدخول من جهاز جديد';
+
+    var p1 = document.getElementById('pin-setup-1');
+    var p2 = document.getElementById('pin-setup-2');
+    var err = document.getElementById('pin-setup-err');
+    p1.value = ''; p2.value = ''; err.style.display = 'none';
+
+    var btn = document.getElementById('pin-setup-submit');
+    btn.disabled = false;
+    btn.onclick = function () {
+      var pin1 = p1.value.trim();
+      var pin2 = p2.value.trim();
+      err.style.display = 'none';
+      if (!/^[0-9]{6}$/.test(pin1)) { err.textContent = 'الرمز يجب أن يكون 6 أرقام'; err.style.display = ''; return; }
+      if (pin1 !== pin2) { err.textContent = 'الرمزان غير متطابقين'; err.style.display = ''; p2.value = ''; return; }
+      btn.disabled = true;
+      rpc('set_account_pin', { p_pin: pin1 }).then(function () {
+        trustDevice(userId);
+        enterShellAfterPin();
+      }).catch(function (e) {
+        err.textContent = errText(e); err.style.display = '';
+      }).finally(function () { btn.disabled = false; });
+    };
+  }
+
+  function showPinEntry(userId) {
+    pinGateEl.classList.add('on');
+    pinSetupStep.style.display = 'none';
+    pinEntryStep.style.display = '';
+    pinGateTitle.textContent = 'أدخل رمز الحماية';
+    pinGateSub.textContent = 'جهاز جديد — أدخل الرمز المكوّن من 6 أرقام';
+
+    var input = document.getElementById('pin-entry-code');
+    var err = document.getElementById('pin-entry-err');
+    input.value = ''; err.style.display = 'none';
+
+    var btn = document.getElementById('pin-entry-submit');
+    btn.disabled = false;
+    btn.onclick = function () {
+      var pin = input.value.trim();
+      err.style.display = 'none';
+      if (!/^[0-9]{6}$/.test(pin)) { err.textContent = 'أدخل رمزاً من 6 أرقام'; err.style.display = ''; return; }
+      btn.disabled = true;
+      rpc('verify_account_pin', { p_pin: pin }).then(function (ok) {
+        if (ok) { trustDevice(userId); enterShellAfterPin(); return; }
+        err.textContent = 'رمز غير صحيح'; err.style.display = ''; input.value = '';
+      }).catch(function (e) {
+        var msg = (e && e.message) || String(e);
+        err.textContent = msg.indexOf('PIN_LOCKED') !== -1 ? 'محاولات كثيرة — حاول بعد 15 دقيقة' : errText(e);
+        err.style.display = '';
+      }).finally(function () { btn.disabled = false; });
+    };
+
+    document.getElementById('pin-forgot').onclick = function () {
+      var b = this; b.disabled = true;
+      rpc('request_pin_reset').then(function () {
+        toast('أُرسل طلب إعادة التعيين إلى المدير');
+      }).catch(function (e) { toast(errText(e), true); }).finally(function () { b.disabled = false; });
+    };
   }
 
   // ---------- التوجيه ----------
@@ -464,11 +570,13 @@
     return Promise.all([
       db.from('profiles').select('*').order('created_at', { ascending: false }),
       db.from('user_roles').select('user_id, role'),
-      rpc('admin_list_access_grants').catch(function () { return []; })
+      rpc('admin_list_access_grants').catch(function () { return []; }),
+      rpc('admin_list_pin_reset_requests').catch(function () { return []; })
     ]).then(function (res) {
       if (res[0].error) throw res[0].error;
       if (res[1].error) throw res[1].error;
       var grants = res[2] || [];
+      var pinRequests = res[3] || [];
       var rolesByUser = {};
       res[1].data.forEach(function (r) { (rolesByUser[r.user_id] = rolesByUser[r.user_id] || []).push(r.role); });
 
@@ -498,6 +606,15 @@
         return '<tr><td dir="ltr">' + esc(g.email) + '</td><td>' + esc(rolesTxt) + '</td><td>' + st + '</td><td>' + when(g.created_at) + '</td><td class="actions">' + act + '</td></tr>';
       });
 
+      var pinReqRows = pinRequests.map(function (p) {
+        var actions = '';
+        if (p.status === 'pending') {
+          actions = '<button class="btn btn-sm btn-accent" data-approve-pin="' + esc(p.id) + '">قبول</button>' +
+                    '<button class="btn btn-sm btn-danger" data-reject-pin="' + esc(p.id) + '">رفض</button>';
+        }
+        return '<tr><td dir="ltr">' + esc(p.email) + '</td><td>' + esc(p.full_name || '—') + '</td><td>' + statusBadge(p.status) + '</td><td>' + when(p.requested_at) + '</td><td class="actions">' + actions + '</td></tr>';
+      });
+
       viewEl.innerHTML =
         '<div class="card"><div class="card-header"><h3>إضافة مستخدم (دعوة بالبريد)</h3></div>' +
           '<div class="note">أدخل بريد الشخص واختر دوره. عند تسجيله الدخول عبر Google بنفس البريد يُمنح الدور تلقائياً — وإن كان مسجّلاً بالفعل يُطبّق فوراً.</div>' +
@@ -512,6 +629,10 @@
         '<div class="card"><div class="card-header"><h3>المستخدمون</h3></div>' +
           '<div class="mb-4"><input type="search" id="user-search" placeholder="ابحث بالاسم أو الهاتف أو البريد…"></div>' +
           '<div id="users-table">' + table(['الاسم', 'المعرّف', 'الأدوار', 'الحالة', 'انضم', 'إجراء'], rows) + '</div>' +
+        '</div>' +
+        '<div class="card"><div class="card-header"><h3>طلبات إعادة تعيين رمز الحماية</h3></div>' +
+          '<div class="note">الموافقة تحذف رمز المستخدم الحالي؛ يُطلب منه إنشاء رمز جديد عند الدخول التالي.</div>' +
+          table(['البريد', 'الاسم', 'الحالة', 'تاريخ الطلب', 'إجراء'], pinReqRows) +
         '</div>';
 
       // بحث فوري في جدول المستخدمين (اسم/هاتف/بريد)
@@ -588,6 +709,19 @@
           return false;
         });
       }, 'تم تحديث الأدوار');
+
+      bindActionAsync('approve-pin', function (id) {
+        return asyncConfirm('تأكيد قبول الطلب؟ سيُطلب من المستخدم إنشاء رمز جديد عند الدخول التالي.').then(function (ok) {
+          if (!ok) return false;
+          return rpc('admin_resolve_pin_reset', { p_request_id: id, p_approve: true });
+        });
+      }, 'تم قبول الطلب');
+      bindActionAsync('reject-pin', function (id) {
+        return asyncConfirm('تأكيد رفض الطلب؟').then(function (ok) {
+          if (!ok) return false;
+          return rpc('admin_resolve_pin_reset', { p_request_id: id, p_approve: false });
+        });
+      }, 'تم رفض الطلب');
     });
   };
 

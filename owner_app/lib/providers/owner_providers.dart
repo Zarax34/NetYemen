@@ -38,5 +38,14 @@ final ownedNetworksProvider = FutureProvider<List<OwnedNetwork>>((ref) async {
   return await service.getOwnedNetworks();
 });
 
-// شريط التنقل السفلي — الفهرس المختار
+// PIN Gate Provider
+final hasAccountPinProvider = FutureProvider<bool>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user == null) return false;
+  
+  final service = ref.watch(ownerServiceProvider);
+  return await service.hasAccountPin();
+});
+
+// رقم التبويب المحدد
 final selectedTabProvider = StateProvider<int>((ref) => 0);

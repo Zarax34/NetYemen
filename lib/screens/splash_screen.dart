@@ -5,7 +5,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../utils/app_theme.dart';
 import '../providers/app_providers.dart';
 import 'auth/login_screen.dart';
-import 'main_screen.dart';
+import 'pin/pin_gate_screen.dart';
 
 /// بوّابة المصادقة + شاشة العلامة التجارية.
 ///
@@ -24,13 +24,13 @@ class SplashScreen extends ConsumerWidget {
       data: (state) {
         final session = state.session ??
             Supabase.instance.client.auth.currentSession;
-        return session != null ? const MainScreen() : const LoginScreen();
+        return session != null ? const PinGateScreen() : const LoginScreen();
       },
       // قبل وصول أول حدث: اعتمد على الجلسة المحفوظة إن وُجدت، وإلا اعرض
       // شاشة العلامة التجارية ريثما يصل الحدث الأول (لحظات).
       loading: () {
         final session = Supabase.instance.client.auth.currentSession;
-        return session != null ? const MainScreen() : const _SplashBranding();
+        return session != null ? const PinGateScreen() : const _SplashBranding();
       },
       error: (_, __) => const LoginScreen(),
     );

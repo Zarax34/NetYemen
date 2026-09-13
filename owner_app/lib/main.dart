@@ -9,8 +9,10 @@ import 'package:app_links/app_links.dart';
 import 'utils/constants.dart';
 import 'utils/app_theme.dart';
 import 'screens/splash_screen.dart';
+import 'screens/pin_entry_screen.dart';
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,14 +36,43 @@ class NetYemenOwnerApp extends StatefulWidget {
   State<NetYemenOwnerApp> createState() => _NetYemenOwnerAppState();
 }
 
-class _NetYemenOwnerAppState extends State<NetYemenOwnerApp> {
+class _NetYemenOwnerAppState extends State<NetYemenOwnerApp> with WidgetsBindingObserver {
   late AppLinks _appLinks;
   StreamSubscription<Uri>? _linkSubscription;
+  DateTime? _lastActiveTime;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _initDeepLinks();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _linkSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (_lastActiveTime != null) {
+        final diff = DateTime.now().difference(_lastActiveTime!);
+        if (diff.inMinutes >= 15) {
+          final session = Supabase.instance.client.auth.currentSession;
+          if (session != null) {
+            navigatorKey.currentState?.push(
+              MaterialPageRoute(builder: (_) => const PinEntryScreen(isAutoLock: true)),
+            );
+          }
+        }
+      }
+      _lastActiveTime = null;
+    } else if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      _lastActiveTime ??= DateTime.now();
+    }
   }
 
   Future<void> _initDeepLinks() async {
@@ -76,12 +107,12 @@ class _NetYemenOwnerAppState extends State<NetYemenOwnerApp> {
             // Quietly ignore: supabase's internal listener might have won the race.
           } else {
             scaffoldMessengerKey.currentState?.showSnackBar(
-              SnackBar(content: Text('خطأ في المصادقة: ${e.message}')),
+              SnackBar(content: Text('خطأ المصادقة: ${e.message}')),
             );
           }
         } catch (e) {
           scaffoldMessengerKey.currentState?.showSnackBar(
-            const SnackBar(content: Text('حدث خطأ غير متوقع أثناء تسجيل الدخول')),
+            const SnackBar(content: Text('حدث خطأ أثناء معالجة الرابط')),
           );
         }
       }
@@ -89,14 +120,9 @@ class _NetYemenOwnerAppState extends State<NetYemenOwnerApp> {
   }
 
   @override
-  void dispose() {
-    _linkSubscription?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       scaffoldMessengerKey: scaffoldMessengerKey,
       debugShowCheckedModeBanner: false,
       title: AppConstants.appName,

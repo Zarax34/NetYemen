@@ -63,4 +63,25 @@ class OwnerSupabaseService {
     });
     return response.toString();
   }
+
+  // ==================== PIN ====================
+
+  Future<bool> hasAccountPin() async {
+    final response = await _client.rpc('has_account_pin');
+    return response == true;
+  }
+
+  Future<void> setAccountPin(String pin) async {
+    await _client.rpc('set_account_pin', params: {'p_pin': pin});
+  }
+
+  Future<bool> verifyAccountPin(String pin) async {
+    final response = await _client.rpc('verify_account_pin', params: {'p_pin': pin});
+    return response == true;
+  }
+
+  Future<String> requestPinReset() async {
+    final response = await _client.rpc('request_pin_reset');
+    return response.toString();
+  }
 }

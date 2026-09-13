@@ -299,5 +299,31 @@ class SupabaseService {
       'p_offers_announcements_enabled': offersAnnouncementsEnabled,
     });
   }
-}
 
+  // ==================== PIN ====================
+
+  /// هل للمستخدم الحالي رمز سري (PIN) مُسجّل.
+  Future<bool> hasAccountPin() async {
+    final result = await _client.rpc('has_account_pin');
+    return result == true;
+  }
+
+  /// إنشاء رمز سري جديد (6 أرقام). يلقي INVALID_PIN أو PIN_ALREADY_SET.
+  Future<void> setAccountPin(String pin) async {
+    await _client.rpc('set_account_pin', params: {'p_pin': pin});
+  }
+
+  /// التحقق من الرمز السري. يُرجع true إذا صحيح.
+  /// يلقي PIN_NOT_SET أو PIN_LOCKED (بعد 5 محاولات خاطئة).
+  Future<bool> verifyAccountPin(String pin) async {
+    final result =
+        await _client.rpc('verify_account_pin', params: {'p_pin': pin});
+    return result == true;
+  }
+
+  /// طلب إعادة تعيين الرمز السري (يُنشئ طلباً للمدير).
+  Future<String> requestPinReset() async {
+    final result = await _client.rpc('request_pin_reset');
+    return result.toString();
+  }
+}

@@ -8,6 +8,7 @@ import 'auth/login_screen.dart';
 import 'main_screen.dart';
 import 'not_owner_screen.dart';
 import 'create_first_network_screen.dart';
+import 'pin_gate.dart';
 
 class SplashScreen extends ConsumerWidget {
   const SplashScreen({super.key});
@@ -20,11 +21,11 @@ class SplashScreen extends ConsumerWidget {
       data: (state) {
         final session = state.session ??
             Supabase.instance.client.auth.currentSession;
-        return session != null ? const _RoleGate() : const LoginScreen();
+        return session != null ? const PinGate() : const LoginScreen();
       },
       loading: () {
         final session = Supabase.instance.client.auth.currentSession;
-        return session != null ? const _RoleGate() : const _SplashBranding();
+        return session != null ? const PinGate() : const SplashBranding();
       },
       error: (err, stack) => Scaffold(
         backgroundColor: AppTheme.primary,
@@ -55,8 +56,8 @@ class SplashScreen extends ConsumerWidget {
   }
 }
 
-class _RoleGate extends ConsumerWidget {
-  const _RoleGate();
+class RoleGate extends ConsumerWidget {
+  const RoleGate({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -77,7 +78,7 @@ class _RoleGate extends ConsumerWidget {
               return const NotOwnerScreen();
             }
           },
-          loading: () => const _SplashBranding(),
+          loading: () => const SplashBranding(),
           error: (err, stack) => Scaffold(
             backgroundColor: AppTheme.background,
             body: Center(
@@ -101,7 +102,7 @@ class _RoleGate extends ConsumerWidget {
           ),
         );
       },
-      loading: () => const _SplashBranding(),
+      loading: () => const SplashBranding(),
       error: (err, stack) => Scaffold(
         backgroundColor: AppTheme.background,
         body: Center(
@@ -111,7 +112,7 @@ class _RoleGate extends ConsumerWidget {
               const Icon(Icons.error_outline, size: 64, color: AppTheme.error),
               const SizedBox(height: 16),
               const Text(
-                'تعذّر جلب بيانات الشبكة',
+                'تعذّر تحميل شبكاتك',
                 style: TextStyle(color: AppTheme.textPrimary, fontSize: 16),
               ),
               const SizedBox(height: 16),
@@ -127,8 +128,8 @@ class _RoleGate extends ConsumerWidget {
   }
 }
 
-class _SplashBranding extends StatelessWidget {
-  const _SplashBranding();
+class SplashBranding extends StatelessWidget {
+  const SplashBranding({super.key});
 
   @override
   Widget build(BuildContext context) {

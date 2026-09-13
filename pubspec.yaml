@@ -31,6 +31,9 @@ dependencies:
   # مفاتيح التكرار (idempotency) لعمليات الشراء والشحن
   uuid: ^4.4.0
 
+  # تخزين محلي (علَم الثقة بالجهاز لبوّابة الرمز السري)
+  shared_preferences: ^2.2.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

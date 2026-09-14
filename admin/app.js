@@ -365,7 +365,7 @@
   function bindActionAsync(attr, run, successText) {
     Array.prototype.forEach.call(viewEl.querySelectorAll('[data-' + attr + ']'), function (btn) {
       btn.onclick = function () {
-        var p = run(btn.dataset[attr]);
+        var p = run(btn.getAttribute('data-' + attr));
         if (!p || !p.then) return;
         btn.disabled = true;
         p.then(function (res) {

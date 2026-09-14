@@ -146,7 +146,7 @@ class SplashBranding extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             const Text(
-              'NetYemen Owner',
+              'واصل نت للملاك',
               style: TextStyle(
                 fontSize: 32,
                 fontWeight: FontWeight.bold,

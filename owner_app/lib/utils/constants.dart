@@ -7,7 +7,7 @@ class AppConstants {
   static const String supabaseAnonKey =
       'sb_publishable_sFLWfYET8aWskNxHPKZyuA_tk2f4kN_';
 
-  static const String appName = 'NetYemen Owner';
+  static const String appName = 'واصل نت للملاك';
   static const String appVersion = '1.0.0';
 
   static const List<String> yemenGovernorates = [

@@ -17,7 +17,7 @@ class HomeScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('NetYemen'),
+        title: const Text('واصل نت'),
         actions: [
           Consumer(
             builder: (context, ref, child) {

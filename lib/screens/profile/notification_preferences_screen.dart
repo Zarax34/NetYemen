@@ -112,7 +112,7 @@ class _NotificationPreferencesScreenState
                 ),
                 _buildSwitch(
                   title: 'تحديثات المنصة',
-                  subtitle: 'إشعارات عامة من NetYemen',
+                  subtitle: 'إشعارات عامة من واصل نت',
                   value: _platformUpdates,
                   onChanged: (v) => setState(() => _platformUpdates = v),
                 ),

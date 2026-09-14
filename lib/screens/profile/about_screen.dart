@@ -31,7 +31,7 @@ class AboutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 24),
               Text(
-                'NetYemen',
+                'واصل نت',
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: 8),
@@ -48,7 +48,7 @@ class AboutScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               Text(
-                '© ${DateTime.now().year} NetYemen',
+                '© ${DateTime.now().year} واصل نت',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],

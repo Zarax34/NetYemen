@@ -113,7 +113,7 @@ class _CreateFirstNetworkScreenState extends ConsumerState<CreateFirstNetworkScr
                 const SizedBox(height: 8),
                 const Text(
                   'يرجى ملء بيانات شبكتك للبدء. بعد الإرسال، سيتم مراجعة الطلب '
-                  'من قبل فريق NetYemen واعتماده لتتمكن من إضافة باقات وكروت.',
+                  'من قبل فريق واصل نت واعتماده لتتمكن من إضافة باقات وكروت.',
                   style: TextStyle(color: AppTheme.textSecondary),
                   textAlign: TextAlign.center,
                 ),

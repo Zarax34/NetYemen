@@ -21,3 +21,9 @@ admin/config.js
 hive/
 roster.json
 roster-backups/
+
+# owner app release signing (never commit)
+owner_app/android/key.properties
+
+# release artifacts (do not commit)
+dist/

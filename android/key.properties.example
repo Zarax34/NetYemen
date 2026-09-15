@@ -1,0 +1,13 @@
+# قالب إعداد توقيع الإنتاج.
+# انسخه إلى android/key.properties واملأ القيم الحقيقية.
+# ملف key.properties الحقيقي وملف .jks مستثنيان في .gitignore ويجب ألا يُرفعا إطلاقاً.
+#
+# لإنشاء مفتاح جديد:
+#   keytool -genkeypair -v -keystore android/netyemen-release.jks \
+#     -alias netyemen -keyalg RSA -keysize 2048 -validity 10000
+#
+storePassword=<كلمة مرور المخزن>
+keyPassword=<كلمة مرور المفتاح>
+keyAlias=netyemen
+# المسار نسبةً إلى مجلد android/ أو مسار مطلق
+storeFile=netyemen-release.jks

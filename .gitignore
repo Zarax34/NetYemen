@@ -15,3 +15,20 @@ android/key.properties
 *.keystore
 .env
 .env.*
+android/.kotlin/
+
+admin/config.js
+hive/
+roster.json
+roster-backups/
+
+# owner app release signing (never commit)
+owner_app/android/key.properties
+
+# release artifacts (do not commit)
+dist/
+
+# Supabase CLI local cache
+supabase/.temp/
+# Local schema dumps
+schema_ssid.sql
